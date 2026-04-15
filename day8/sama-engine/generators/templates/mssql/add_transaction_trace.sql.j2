@@ -1,0 +1,21 @@
+-- ┌──────────────────────────────────────────────────────────────────────────┐
+-- │ [SAMA-TRX-001] Add transaction traceability columns → {{ table }}
+-- └──────────────────────────────────────────────────────────────────────────┘
+{% if 'reference_id' in missing_trace %}
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('{{ table }}') AND name = 'reference_id')
+    ALTER TABLE {{ table }} ADD reference_id NVARCHAR(100) NULL;
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('{{ table }}') AND name = 'idx_{{ table }}_reference_id')
+    CREATE UNIQUE INDEX idx_{{ table }}_reference_id ON {{ table }} (reference_id) WHERE reference_id IS NOT NULL;
+GO
+{% endif %}
+{% if 'correlation_id' in missing_trace %}
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('{{ table }}') AND name = 'correlation_id')
+    ALTER TABLE {{ table }} ADD correlation_id UNIQUEIDENTIFIER NULL DEFAULT NEWID();
+GO
+{% endif %}
+{% if 'status' in missing_trace %}
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('{{ table }}') AND name = 'status')
+    ALTER TABLE {{ table }} ADD status NVARCHAR(50) NOT NULL DEFAULT 'PENDING';
+GO
+{% endif %}

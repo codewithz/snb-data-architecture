@@ -1,0 +1,13 @@
+-- ┌──────────────────────────────────────────────────────────────────────────┐
+-- │ [SAMA-RET-001] Add data retention metadata → {{ table }}
+-- └──────────────────────────────────────────────────────────────────────────┘
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('{{ table }}') AND name = 'retention_period')
+    ALTER TABLE {{ table }} ADD retention_period SMALLINT NULL DEFAULT 60;
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('{{ table }}') AND name = 'data_category')
+    ALTER TABLE {{ table }} ADD data_category NVARCHAR(100) NULL;
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('{{ table }}') AND name = 'retention_expires_at')
+    ALTER TABLE {{ table }} ADD retention_expires_at AS
+        DATEADD(MONTH, retention_period, created_at) PERSISTED;
+GO

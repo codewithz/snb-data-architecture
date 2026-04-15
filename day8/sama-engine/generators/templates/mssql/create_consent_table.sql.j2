@@ -1,0 +1,29 @@
+-- ┌──────────────────────────────────────────────────────────────────────────┐
+-- │ [PDPL-CON-001] Create consent_records table
+-- │ PDPL Article 10 — consent must be recorded with purpose, date, and basis
+-- └──────────────────────────────────────────────────────────────────────────┘
+IF OBJECT_ID('consent_records', 'U') IS NULL
+BEGIN
+    CREATE TABLE consent_records (
+        id               BIGINT           IDENTITY(1,1) PRIMARY KEY,
+        data_subject_id  BIGINT           NOT NULL,
+        purpose          NVARCHAR(500)    NOT NULL,
+        processing_basis NVARCHAR(100)    NOT NULL DEFAULT 'CONSENT',
+        consent_given    BIT              NOT NULL DEFAULT 0,
+        consent_date     DATETIME2        NOT NULL DEFAULT GETUTCDATE(),
+        withdrawal_date  DATETIME2        NULL,
+        consent_version  NVARCHAR(50)     NULL,
+        source_ip        NVARCHAR(45)     NULL,
+        is_deleted       BIT              NOT NULL DEFAULT 0,
+        deleted_at       DATETIME2        NULL,
+        deleted_by       NVARCHAR(255)    NULL,
+        created_at       DATETIME2        NOT NULL DEFAULT GETUTCDATE(),
+        created_by       NVARCHAR(255)    NOT NULL DEFAULT SYSTEM_USER,
+        updated_at       DATETIME2        NULL,
+        updated_by       NVARCHAR(255)    NULL
+    );
+
+    CREATE INDEX idx_consent_data_subject ON consent_records (data_subject_id);
+    CREATE INDEX idx_consent_given ON consent_records (consent_given, consent_date DESC);
+END;
+GO

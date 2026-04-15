@@ -1,0 +1,25 @@
+-- ┌──────────────────────────────────────────────────────────────────────────┐
+-- │ [PDPL-DSR-001] Create data_subject_requests table
+-- │ PDPL Articles 14–18 — access, rectification, erasure, portability rights
+-- └──────────────────────────────────────────────────────────────────────────┘
+CREATE TABLE IF NOT EXISTS data_subject_requests (
+    id                BIGINT        AUTO_INCREMENT PRIMARY KEY,
+    data_subject_id   BIGINT        NOT NULL,
+    request_type      VARCHAR(50)   NOT NULL,
+    status            VARCHAR(50)   NOT NULL DEFAULT 'PENDING',
+    requested_at      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    response_due_date DATE          NULL AS (DATE_ADD(DATE(requested_at), INTERVAL 30 DAY)) STORED,
+    completed_at      DATETIME      NULL,
+    rejection_reason  TEXT          NULL,
+    handler_id        VARCHAR(255)  NULL,
+    notes             TEXT          NULL,
+    is_deleted        TINYINT(1)    NOT NULL DEFAULT 0,
+    deleted_at        DATETIME      NULL,
+    deleted_by        VARCHAR(255)  NULL,
+    created_at        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by        VARCHAR(255)  NOT NULL DEFAULT 'SYSTEM',
+    updated_at        DATETIME      NULL ON UPDATE CURRENT_TIMESTAMP,
+    updated_by        VARCHAR(255)  NULL,
+    INDEX idx_dsr_data_subject (data_subject_id),
+    INDEX idx_dsr_status (status, requested_at DESC)
+);

@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip3 install:*)",
+      "Bash(python3 -m pytest tests/ -v)",
+      "Bash(python3 -c \":*)",
+      "Bash(python3 cli.py scan --ddl tests/sample_ddls/postgres_sample.sql --db postgres --output /tmp/report.json --html /tmp/report.html --remediation /tmp/remediation.sql)",
+      "Bash(source .venv/bin/activate)",
+      "Bash(python cli.py scan --ddl tests/sample_ddls/postgres_sample.sql --db postgres --fix --output-dir /tmp/sama-fix-output --fail-on HIGH)",
+      "Bash(source /Users/codewithz/Desktop/sama-engine/.venv/bin/activate)",
+      "Bash(pip list:*)",
+      "Bash(pip install:*)",
+      "Bash(python -m pytest tests/ -q)"
+    ]
+  }
+}

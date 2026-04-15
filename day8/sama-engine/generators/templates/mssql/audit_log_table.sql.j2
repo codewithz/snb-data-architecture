@@ -1,0 +1,31 @@
+-- ┌──────────────────────────────────────────────────────────────────────────┐
+-- │ Audit log table → {{ table }}_audit_log
+-- └──────────────────────────────────────────────────────────────────────────┘
+IF OBJECT_ID('{{ table }}_audit_log', 'U') IS NULL
+BEGIN
+    CREATE TABLE {{ table }}_audit_log (
+        audit_id        BIGINT           IDENTITY(1,1) PRIMARY KEY,
+        record_id       BIGINT           NOT NULL,
+        operation       NVARCHAR(10)     NOT NULL
+                        CHECK (operation IN ('INSERT', 'UPDATE', 'DELETE')),
+        performed_by    NVARCHAR(255)    NOT NULL DEFAULT 'UNKNOWN',
+        performed_at    DATETIME2        NOT NULL DEFAULT GETUTCDATE(),
+        application_id  NVARCHAR(100)    NULL,
+        source_ip       NVARCHAR(45)     NULL,
+        correlation_id  UNIQUEIDENTIFIER NULL,
+        session_id      NVARCHAR(255)    NULL,
+        old_values      NVARCHAR(MAX)    NULL,
+        new_values      NVARCHAR(MAX)    NULL
+    );
+
+    CREATE INDEX idx_{{ table }}_audit_record
+        ON {{ table }}_audit_log (record_id);
+    CREATE INDEX idx_{{ table }}_audit_performed
+        ON {{ table }}_audit_log (performed_at DESC);
+    CREATE INDEX idx_{{ table }}_audit_correlation
+        ON {{ table }}_audit_log (correlation_id)
+        WHERE correlation_id IS NOT NULL;
+    CREATE INDEX idx_{{ table }}_audit_operation
+        ON {{ table }}_audit_log (operation, performed_at DESC);
+END;
+GO

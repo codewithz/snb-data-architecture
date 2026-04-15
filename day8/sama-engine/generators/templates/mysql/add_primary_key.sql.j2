@@ -1,0 +1,5 @@
+-- ┌──────────────────────────────────────────────────────────────────────────┐
+-- │ [SAMA-INT-001] Add primary key → {{ table }}
+-- └──────────────────────────────────────────────────────────────────────────┘
+ALTER TABLE {{ table }}
+    ADD COLUMN IF NOT EXISTS id BIGINT AUTO_INCREMENT PRIMARY KEY FIRST;

@@ -1,0 +1,66 @@
+-- ┌──────────────────────────────────────────────────────────────────────────┐
+-- │ [SAMA-AUD-003] Create audit log table → {{ table }}_audit_log
+-- │ SAMA CSF §3.3.5 — immutable before/after record for all DML operations
+-- └──────────────────────────────────────────────────────────────────────────┘
+CREATE TABLE IF NOT EXISTS {{ table }}_audit_log (
+    audit_id       BIGINT        AUTO_INCREMENT PRIMARY KEY,
+    record_id      BIGINT        NOT NULL,
+    operation      VARCHAR(10)   NOT NULL
+                   CHECK (operation IN ('INSERT', 'UPDATE', 'DELETE')),
+    performed_at   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    performed_by   VARCHAR(255)  NOT NULL DEFAULT 'SYSTEM',
+    source_ip      VARCHAR(45)   NULL,
+    correlation_id VARCHAR(36)   NULL,
+    old_values     JSON          NULL,
+    new_values     JSON          NULL,
+    INDEX idx_{{ table }}_audit_record  (record_id),
+    INDEX idx_{{ table }}_audit_performed (performed_at DESC),
+    INDEX idx_{{ table }}_audit_operation (operation)
+);
+
+DELIMITER $$
+
+CREATE TRIGGER trg_{{ table }}_audit_insert
+AFTER INSERT ON {{ table }} FOR EACH ROW
+BEGIN
+    INSERT INTO {{ table }}_audit_log
+        (record_id, operation, performed_by, correlation_id, new_values)
+    VALUES (
+        NEW.{{ pk_col }},
+        'INSERT',
+        IFNULL(@current_user, 'SYSTEM'),
+        UUID(),
+        JSON_OBJECT({% for col in columns %}'{{ col }}', NEW.{{ col }}{% if not loop.last %}, {% endif %}{% endfor %})
+    );
+END$$
+
+CREATE TRIGGER trg_{{ table }}_audit_update
+AFTER UPDATE ON {{ table }} FOR EACH ROW
+BEGIN
+    INSERT INTO {{ table }}_audit_log
+        (record_id, operation, performed_by, correlation_id, old_values, new_values)
+    VALUES (
+        NEW.{{ pk_col }},
+        'UPDATE',
+        IFNULL(@current_user, 'SYSTEM'),
+        UUID(),
+        JSON_OBJECT({% for col in columns %}'{{ col }}', OLD.{{ col }}{% if not loop.last %}, {% endif %}{% endfor %}),
+        JSON_OBJECT({% for col in columns %}'{{ col }}', NEW.{{ col }}{% if not loop.last %}, {% endif %}{% endfor %})
+    );
+END$$
+
+CREATE TRIGGER trg_{{ table }}_audit_delete
+BEFORE DELETE ON {{ table }} FOR EACH ROW
+BEGIN
+    INSERT INTO {{ table }}_audit_log
+        (record_id, operation, performed_by, correlation_id, old_values)
+    VALUES (
+        OLD.{{ pk_col }},
+        'DELETE',
+        IFNULL(@current_user, 'SYSTEM'),
+        UUID(),
+        JSON_OBJECT({% for col in columns %}'{{ col }}', OLD.{{ col }}{% if not loop.last %}, {% endif %}{% endfor %})
+    );
+END$$
+
+DELIMITER ;

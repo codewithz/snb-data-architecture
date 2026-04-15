@@ -1,0 +1,46 @@
+-- ============================================================
+-- SAMA Audit Trail — MySQL Session Setup Helper
+-- ============================================================
+-- Set these user-defined variables before any DML on audited
+-- tables. MySQL triggers read them via @app_* variables.
+--
+-- Usage pattern (in application code or stored proc):
+--
+--   SET @app_current_user   = 'user@example.com';
+--   SET @app_correlation_id = UUID();
+--   SET @app_application_id = 'payment-service';
+--   SET @app_session_id     = 'sess-abc123';
+--
+--   UPDATE customers SET email = ? WHERE id = ?;
+-- ============================================================
+
+-- ── Required session variables ─────────────────────────────
+--   @app_current_user    VARCHAR  — authenticated user identity
+--   @app_correlation_id  CHAR(36) — UUID linking one business transaction
+--   @app_application_id  VARCHAR  — microservice / component name
+--   @app_session_id      VARCHAR  — HTTP session identifier
+
+-- ── Stored procedure helper ────────────────────────────────
+DROP PROCEDURE IF EXISTS set_audit_context;
+DELIMITER $$
+CREATE PROCEDURE set_audit_context(
+    IN p_current_user   VARCHAR(255),
+    IN p_correlation_id VARCHAR(36),
+    IN p_application_id VARCHAR(100),
+    IN p_session_id     VARCHAR(255)
+)
+BEGIN
+    SET @app_current_user   = IFNULL(p_current_user,   'UNKNOWN');
+    SET @app_correlation_id = IFNULL(p_correlation_id, UUID());
+    SET @app_application_id = IFNULL(p_application_id, '');
+    SET @app_session_id     = IFNULL(p_session_id,     '');
+END$$
+DELIMITER ;
+
+-- ── Example call ────────────────────────────────────────────
+-- CALL set_audit_context('ali@example.com', UUID(), 'payment-service', 'sess-xyz789');
+
+-- ── Audited tables in this schema ────────────────────────────────────────
+{% for table in audited_tables %}
+-- {{ table }} → {{ table }}_audit_log
+{% endfor %}

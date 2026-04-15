@@ -1,0 +1,18 @@
+-- ┌──────────────────────────────────────────────────────────────────────────┐
+-- │ [SAMA-TRX-001] Add transaction traceability columns → {{ table }}
+-- │ SAMA Open Banking Framework — end-to-end traceability for all transactions
+-- └──────────────────────────────────────────────────────────────────────────┘
+{% if 'reference_id' in missing_trace %}
+ALTER TABLE {{ table }}
+    ADD COLUMN IF NOT EXISTS reference_id VARCHAR(100) NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_{{ table }}_reference_id
+    ON {{ table }} (reference_id);
+{% endif %}
+{% if 'correlation_id' in missing_trace %}
+ALTER TABLE {{ table }}
+    ADD COLUMN IF NOT EXISTS correlation_id VARCHAR(36) NULL DEFAULT (UUID());
+{% endif %}
+{% if 'status' in missing_trace %}
+ALTER TABLE {{ table }}
+    ADD COLUMN IF NOT EXISTS status VARCHAR(50) NOT NULL DEFAULT 'PENDING';
+{% endif %}

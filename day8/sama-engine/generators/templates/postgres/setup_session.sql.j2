@@ -1,0 +1,61 @@
+-- ============================================================
+-- SAMA Audit Trail — PostgreSQL Session Setup Helper
+-- ============================================================
+-- Call these SET LOCAL statements inside every transaction that
+-- modifies audited tables. The trigger functions read them via
+-- current_setting('app.*', TRUE).
+--
+-- Usage pattern:
+--
+--   BEGIN;
+--   SET LOCAL app.current_user   = 'user@example.com';
+--   SET LOCAL app.correlation_id = gen_random_uuid()::TEXT;
+--   SET LOCAL app.application_id = 'payment-service';
+--   SET LOCAL app.session_id     = 'sess-abc123';
+--
+--   UPDATE customers SET email = $1 WHERE id = $2;
+--   -- ... other DML ...
+--   COMMIT;
+-- ============================================================
+
+-- ── Required session variables ─────────────────────────────
+--   app.current_user    VARCHAR  — authenticated user identity (email or ID)
+--   app.correlation_id  UUID     — links all audit rows from one business transaction
+--   app.application_id  VARCHAR  — microservice / component name
+--   app.session_id      VARCHAR  — HTTP session or JWT jti claim
+
+-- ── Automated setup function (call once per connection) ────
+CREATE OR REPLACE FUNCTION set_audit_context(
+    p_current_user   TEXT,
+    p_correlation_id TEXT  DEFAULT NULL,
+    p_application_id TEXT  DEFAULT NULL,
+    p_session_id     TEXT  DEFAULT NULL
+)
+RETURNS VOID
+LANGUAGE plpgsql AS $$
+BEGIN
+    PERFORM set_config('app.current_user',   p_current_user,                         TRUE);
+    PERFORM set_config('app.correlation_id', COALESCE(p_correlation_id, gen_random_uuid()::TEXT), TRUE);
+    PERFORM set_config('app.application_id', COALESCE(p_application_id, ''),         TRUE);
+    PERFORM set_config('app.session_id',     COALESCE(p_session_id,     ''),         TRUE);
+END;
+$$;
+
+-- ── Example call ────────────────────────────────────────────
+-- SELECT set_audit_context(
+--     'ali@example.com',
+--     gen_random_uuid()::TEXT,
+--     'payment-service',
+--     'sess-xyz789'
+-- );
+
+-- ── Audited tables in this schema ────────────────────────────────────────
+{% for table in audited_tables %}
+-- {{ table }} → {{ table }}_audit_log
+{% endfor %}
+
+-- ── GUC defaults (add to postgresql.conf or ALTER DATABASE) ───────────
+-- app.current_user   = ''
+-- app.correlation_id = ''
+-- app.application_id = ''
+-- app.session_id     = ''

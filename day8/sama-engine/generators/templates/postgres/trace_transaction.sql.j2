@@ -1,0 +1,78 @@
+-- ============================================================
+-- SAMA Audit Trail — Cross-Table Correlation Trace View
+-- Joins every audit_log table on correlation_id for forensic
+-- investigation of a single business transaction.
+-- ============================================================
+
+-- ── Unified audit view (all audited tables) ────────────────
+CREATE OR REPLACE VIEW v_audit_trace AS
+{% for table in audited_tables %}
+SELECT
+    '{{ table }}'::TEXT     AS source_table,
+    audit_id,
+    record_id,
+    operation,
+    performed_by,
+    performed_at,
+    application_id,
+    source_ip,
+    correlation_id,
+    session_id,
+    old_values,
+    new_values
+FROM {{ table }}_audit_log
+{% if not loop.last %}UNION ALL
+{% endif %}
+{% endfor %}
+ORDER BY performed_at;
+
+COMMENT ON VIEW v_audit_trace IS
+    'SAMA transaction traceability: union of all audit_log tables. '
+    'Filter by correlation_id to reconstruct a full business transaction.';
+
+-- ── Usage ─────────────────────────────────────────────────
+-- Trace a single business transaction:
+--   SELECT * FROM v_audit_trace
+--    WHERE correlation_id = 'your-uuid-here'
+--    ORDER BY performed_at;
+--
+-- Show all changes by a specific user:
+--   SELECT * FROM v_audit_trace
+--    WHERE performed_by = 'ali@example.com'
+--      AND performed_at > NOW() - INTERVAL '24 hours'
+--    ORDER BY performed_at DESC;
+--
+-- Find all tables touched in a transaction:
+--   SELECT DISTINCT source_table, operation, performed_by, performed_at
+--     FROM v_audit_trace
+--    WHERE correlation_id = 'your-uuid-here'
+--    ORDER BY performed_at;
+
+-- ── Per-table trace function (point-in-time reconstruct) ───
+CREATE OR REPLACE FUNCTION fn_record_history(
+    p_table_name TEXT,
+    p_record_id  BIGINT
+)
+RETURNS TABLE (
+    audit_id       BIGINT,
+    operation      TEXT,
+    performed_by   TEXT,
+    performed_at   TIMESTAMPTZ,
+    correlation_id UUID,
+    old_values     JSONB,
+    new_values     JSONB
+)
+LANGUAGE plpgsql AS $$
+BEGIN
+    RETURN QUERY EXECUTE format(
+        'SELECT audit_id, operation, performed_by, performed_at,
+                correlation_id, old_values, new_values
+           FROM %I
+          WHERE record_id = $1
+          ORDER BY performed_at',
+        p_table_name || '_audit_log'
+    ) USING p_record_id;
+END;
+$$;
+
+-- Usage: SELECT * FROM fn_record_history('customers', 42);

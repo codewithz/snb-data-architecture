@@ -1,0 +1,62 @@
+-- ┌──────────────────────────────────────────────────────────────────────────┐
+-- │ [PDPL-ENC-001] Encrypt Tier {{ tier }} column → {{ table }}.{{ column }}
+-- │ PDPL Art.8 — Tier {{ tier }} ({{ tier_label }}) data must be encrypted at rest
+-- │ Requires: CREATE EXTENSION IF NOT EXISTS pgcrypto;
+-- └──────────────────────────────────────────────────────────────────────────┘
+
+-- PREREQUISITES:
+-- 1. Set your encryption key in postgresql.conf or at session level:
+--    SET app.encryption_key = 'your-256-bit-key-here';
+-- 2. Ensure pgcrypto is installed:
+--    CREATE EXTENSION IF NOT EXISTS pgcrypto;
+-- 3. TEST THIS MIGRATION ON A NON-PRODUCTION DATABASE FIRST.
+
+BEGIN;
+
+-- Step 1: Add encrypted column alongside the plaintext column
+ALTER TABLE {{ table }}
+    ADD COLUMN IF NOT EXISTS {{ column }}_encrypted BYTEA;
+
+-- Step 2: Encrypt existing data
+--   pgp_sym_encrypt stores AES-256 encrypted ciphertext as BYTEA
+UPDATE {{ table }}
+   SET {{ column }}_encrypted = pgp_sym_encrypt(
+           {{ column }}::TEXT,
+           current_setting('app.encryption_key')
+       )
+ WHERE {{ column }} IS NOT NULL
+   AND {{ column }}_encrypted IS NULL;
+
+-- Step 3: Verify row counts match (abort if not)
+DO $$
+DECLARE
+    total_rows       BIGINT;
+    encrypted_rows   BIGINT;
+BEGIN
+    SELECT COUNT(*) INTO total_rows      FROM {{ table }} WHERE {{ column }} IS NOT NULL;
+    SELECT COUNT(*) INTO encrypted_rows  FROM {{ table }} WHERE {{ column }}_encrypted IS NOT NULL;
+    IF total_rows <> encrypted_rows THEN
+        RAISE EXCEPTION 'Encryption verification failed: % rows have plaintext but only % encrypted.',
+            total_rows, encrypted_rows;
+    END IF;
+    RAISE NOTICE 'Encryption OK: % rows encrypted for {{ table }}.{{ column }}.', encrypted_rows;
+END
+$$;
+
+-- Step 4: Rename plaintext column for rollback safety (do NOT drop yet)
+ALTER TABLE {{ table }}
+    RENAME COLUMN {{ column }} TO {{ column }}_plaintext_backup;
+
+-- Step 5: Rename encrypted column to canonical name
+ALTER TABLE {{ table }}
+    RENAME COLUMN {{ column }}_encrypted TO {{ column }};
+
+COMMIT;
+
+-- Step 6 (AFTER VALIDATION): Drop the plaintext backup column
+-- Run this only after confirming the application works with decryption:
+--   ALTER TABLE {{ table }} DROP COLUMN {{ column }}_plaintext_backup;
+
+-- Decryption query for application use:
+--   SELECT pgp_sym_decrypt({{ column }}, current_setting('app.encryption_key'))::{{ original_type }}
+--     FROM {{ table }} WHERE id = $1;

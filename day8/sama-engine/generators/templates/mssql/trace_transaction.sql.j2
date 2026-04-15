@@ -1,0 +1,49 @@
+-- ============================================================
+-- SAMA Audit Trail — Cross-Table Correlation Trace View (MSSQL)
+-- ============================================================
+
+-- ── Unified audit view ─────────────────────────────────────
+CREATE OR ALTER VIEW v_audit_trace AS
+{% for table in audited_tables %}
+SELECT
+    N'{{ table }}'          AS source_table,
+    audit_id,
+    record_id,
+    operation,
+    performed_by,
+    performed_at,
+    application_id,
+    source_ip,
+    correlation_id,
+    session_id,
+    old_values,
+    new_values
+FROM {{ table }}_audit_log
+{% if not loop.last %}UNION ALL
+{% endif %}
+{% endfor %};
+GO
+
+-- ── Trace stored procedure ─────────────────────────────────
+CREATE OR ALTER PROCEDURE trace_transaction
+    @correlation_id UNIQUEIDENTIFIER
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT source_table, audit_id, record_id, operation,
+           performed_by, performed_at, application_id,
+           correlation_id, old_values, new_values
+      FROM v_audit_trace
+     WHERE correlation_id = @correlation_id
+     ORDER BY performed_at;
+END;
+GO
+
+-- ── Usage ─────────────────────────────────────────────────
+-- EXEC trace_transaction @correlation_id = 'your-uuid-here';
+--
+-- All changes by a user in the last 24 hours:
+--   SELECT * FROM v_audit_trace
+--    WHERE performed_by = N'ali@example.com'
+--      AND performed_at > DATEADD(HOUR, -24, GETUTCDATE())
+--    ORDER BY performed_at DESC;

@@ -1,0 +1,57 @@
+-- ┌──────────────────────────────────────────────────────────────────────────┐
+-- │ Audit trigger → {{ table }}
+-- │ AFTER INSERT / UPDATE / DELETE — serialises INSERTED/DELETED via FOR JSON
+-- └──────────────────────────────────────────────────────────────────────────┘
+
+-- Session context contract (set by application before any DML):
+--   EXEC sp_set_session_context 'current_user_id', N'user@example.com';
+--   EXEC sp_set_session_context 'correlation_id',  NEWID();
+--   EXEC sp_set_session_context 'application_id',  N'payment-service';
+--   EXEC sp_set_session_context 'session_id',      N'sess-abc123';
+
+CREATE OR ALTER TRIGGER {{ table }}_audit_trigger
+ON {{ table }}
+AFTER INSERT, UPDATE, DELETE
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- Determine operation type
+    DECLARE @op NVARCHAR(10);
+    IF EXISTS(SELECT 1 FROM inserted) AND EXISTS(SELECT 1 FROM deleted)
+        SET @op = 'UPDATE';
+    ELSE IF EXISTS(SELECT 1 FROM inserted)
+        SET @op = 'INSERT';
+    ELSE
+        SET @op = 'DELETE';
+
+    -- Read session context
+    DECLARE @performed_by   NVARCHAR(255)    = CAST(SESSION_CONTEXT(N'current_user_id') AS NVARCHAR(255));
+    DECLARE @correlation_id UNIQUEIDENTIFIER = TRY_CAST(SESSION_CONTEXT(N'correlation_id') AS UNIQUEIDENTIFIER);
+    DECLARE @app_id         NVARCHAR(100)    = CAST(SESSION_CONTEXT(N'application_id')  AS NVARCHAR(100));
+    DECLARE @session_id     NVARCHAR(255)    = CAST(SESSION_CONTEXT(N'session_id')      AS NVARCHAR(255));
+
+    IF @performed_by   IS NULL SET @performed_by   = SYSTEM_USER;
+    IF @correlation_id IS NULL SET @correlation_id = NEWID();
+
+    -- Insert one audit row per affected record
+    INSERT INTO {{ table }}_audit_log
+        (record_id, operation, performed_by, application_id,
+         correlation_id, session_id, old_values, new_values)
+    SELECT
+        COALESCE(i.{{ pk_col }}, d.{{ pk_col }}),
+        @op,
+        @performed_by,
+        @app_id,
+        @correlation_id,
+        @session_id,
+        (SELECT * FROM deleted  d2
+          WHERE d2.{{ pk_col }} = COALESCE(i.{{ pk_col }}, d.{{ pk_col }})
+          FOR JSON PATH, WITHOUT_ARRAY_WRAPPER),
+        (SELECT * FROM inserted i2
+          WHERE i2.{{ pk_col }} = COALESCE(i.{{ pk_col }}, d.{{ pk_col }})
+          FOR JSON PATH, WITHOUT_ARRAY_WRAPPER)
+    FROM inserted i
+    FULL OUTER JOIN deleted d ON i.{{ pk_col }} = d.{{ pk_col }};
+END;
+GO

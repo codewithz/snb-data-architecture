@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SAMA &amp; PDPL Compliance Engine</title>
+
+  <!-- CodeMirror 5 for SQL syntax highlighting -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/sql/sql.min.js"></script>
+
+  <style>
+    /* ── Base ──────────────────────────────────────────────────── */
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",monospace;background:#0f172a;color:#e2e8f0;min-height:100vh;font-size:13px}
+
+    /* CodeMirror overrides */
+    .CodeMirror{height:320px;border-radius:.5rem;border:1px solid #334155;font-size:12.5px;transition:border-color .2s}
+    .CodeMirror-focused{border-color:#3b82f6;box-shadow:0 0 0 2px rgba(59,130,246,.25)}
+    .CodeMirror-scroll{padding:.5rem}
+
+    /* ── Layout ────────────────────────────────────────────────── */
+    header{border-bottom:1px solid #1e293b;padding:.9rem 1.5rem;display:flex;align-items:center;gap:.75rem;background:#0f172a}
+    header h1{font-size:1.1rem;font-weight:700;color:#38bdf8;letter-spacing:-.01em}
+    header p{font-size:.75rem;color:#64748b;margin-top:.1rem}
+    .status-dot{width:8px;height:8px;border-radius:50%;background:#334155;flex-shrink:0}
+    .status-dot.online{background:#22c55e;box-shadow:0 0 6px #22c55e88}
+    .status-dot.offline{background:#ef4444}
+
+    main{max-width:1200px;margin:0 auto;padding:1.5rem;display:grid;grid-template-columns:420px 1fr;gap:1.5rem;align-items:start}
+    @media(max-width:900px){main{grid-template-columns:1fr}}
+
+    /* ── Cards ─────────────────────────────────────────────────── */
+    .card{background:#1e293b;border:1px solid #334155;border-radius:.75rem;padding:1.25rem}
+    .card-title{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#64748b;margin-bottom:1rem}
+
+    /* ── Form controls ─────────────────────────────────────────── */
+    label.field-label{display:block;font-size:.75rem;color:#94a3b8;margin-bottom:.35rem}
+    select,input[type=text]{background:#0f172a;border:1px solid #334155;color:#e2e8f0;border-radius:.4rem;
+                             padding:.45rem .75rem;font-size:.8rem;width:100%;transition:border-color .2s}
+    select:focus,input:focus{outline:none;border-color:#3b82f6;box-shadow:0 0 0 2px rgba(59,130,246,.2)}
+    .checkbox-row{display:flex;align-items:center;gap:.5rem;font-size:.82rem;color:#cbd5e1;cursor:pointer;margin-bottom:.5rem}
+    .checkbox-row input{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer}
+
+    .upload-area{border:1px dashed #334155;border-radius:.5rem;padding:.65rem 1rem;
+                 display:flex;align-items:center;gap:.75rem;cursor:pointer;margin-bottom:.85rem;
+                 transition:border-color .2s;color:#64748b;font-size:.8rem}
+    .upload-area:hover{border-color:#3b82f6;color:#3b82f6}
+    .upload-area input{display:none}
+
+    .btn{padding:.55rem 1.25rem;border-radius:.5rem;font-size:.85rem;font-weight:600;
+         cursor:pointer;transition:all .15s;border:none}
+    .btn-primary{background:#2563eb;color:#fff}
+    .btn-primary:hover{background:#1d4ed8}
+    .btn-primary:disabled{background:#1e40af;color:#93c5fd;cursor:not-allowed;opacity:.7}
+    .btn-outline{background:transparent;border:1px solid #334155;color:#94a3b8;font-size:.75rem;padding:.35rem .8rem}
+    .btn-outline:hover{border-color:#3b82f6;color:#60a5fa}
+
+    /* ── Error ─────────────────────────────────────────────────── */
+    .error-banner{background:#450a0a;border:1px solid #b91c1c;color:#fca5a5;
+                  border-radius:.5rem;padding:.65rem 1rem;font-size:.82rem;display:none;margin-top:.75rem}
+
+    /* ── Results panel ─────────────────────────────────────────── */
+    .results-panel{display:none}
+
+    /* Score gauge */
+    .score-section{display:flex;align-items:center;gap:1.5rem;margin-bottom:1.25rem;flex-wrap:wrap}
+    .verdict-text{font-size:1.25rem;font-weight:800}
+    .verdict-pass{color:#22c55e}
+    .verdict-warn{color:#f59e0b}
+    .verdict-fail{color:#ef4444}
+
+    /* Stats row */
+    .stats-row{display:flex;flex-wrap:wrap;gap:.75rem;margin-bottom:1.25rem}
+    .stat-chip{background:#0f172a;border:1px solid #334155;border-radius:.5rem;padding:.5rem .85rem;text-align:center}
+    .stat-chip .sv{font-size:1.25rem;font-weight:800;line-height:1}
+    .stat-chip .sl{font-size:.65rem;color:#64748b;text-transform:uppercase;margin-top:.2rem}
+
+    /* Download row */
+    .download-row{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1.25rem}
+
+    /* Tabs */
+    .tabs{display:flex;gap:2px;flex-wrap:wrap;border-bottom:1px solid #334155;margin-bottom:0}
+    .tab-btn{padding:.45rem .9rem;font-size:.78rem;color:#64748b;cursor:pointer;
+             border-radius:.375rem .375rem 0 0;border:1px solid transparent;border-bottom:none;
+             background:transparent;transition:all .15s}
+    .tab-btn:hover{color:#e2e8f0;background:#1e293b55}
+    .tab-btn.active{color:#f8fafc;background:#1e293b;border-color:#334155}
+    .tab-body{background:#1e293b;border:1px solid #334155;border-top:none;border-radius:0 0 .75rem .75rem;
+              overflow:hidden}
+    .tab-panel{display:none;padding:1rem;overflow-x:auto}
+    .tab-panel.active{display:block}
+
+    /* Findings / classification tables */
+    .rt{width:100%;border-collapse:collapse;font-size:.78rem}
+    .rt th{text-align:left;padding:.5rem .75rem;color:#64748b;font-size:.65rem;text-transform:uppercase;
+           letter-spacing:.06em;border-bottom:1px solid #334155;white-space:nowrap}
+    .rt td{padding:.5rem .75rem;border-bottom:1px solid #1e293b;vertical-align:top}
+    .rt tbody tr:last-child td{border-bottom:none}
+    .rt tbody tr:hover td{background:#0f172a}
+    .mono{font-family:monospace;font-size:.75rem}
+
+    /* Severity badges */
+    .badge{display:inline-block;border-radius:.25rem;padding:.12rem .45rem;font-size:.68rem;font-weight:700;letter-spacing:.04em}
+    .s-CRITICAL{background:#450a0a;color:#fca5a5;border:1px solid #b91c1c}
+    .s-HIGH    {background:#431407;color:#fdba74;border:1px solid #c2410c}
+    .s-MEDIUM  {background:#422006;color:#fde68a;border:1px solid #b45309}
+    .s-LOW     {background:#082f49;color:#7dd3fc;border:1px solid #0369a1}
+    .s-INFO    {background:#052e16;color:#86efac;border:1px solid #16a34a}
+    .s-PASS    {background:#052e16;color:#86efac;border:1px solid #16a34a}
+    .s-FAIL    {background:#450a0a;color:#fca5a5;border:1px solid #b91c1c}
+    .tier-1{color:#f87171;font-weight:700}
+    .tier-2{color:#fbbf24}
+    .tier-3{color:#c084fc}
+    .tier-4{color:#f87171;font-weight:800}
+
+    /* SQL code block in tabs */
+    pre.sql-block{background:#0f172a;color:#7dd3fc;border-radius:.5rem;padding:1rem;
+                  font-size:.72rem;white-space:pre-wrap;word-break:break-word;
+                  border:1px solid #334155;max-height:600px;overflow-y:auto;line-height:1.6}
+
+    /* Table cards breakdown */
+    .tbl-card{background:#0f172a;border:1px solid #334155;border-radius:.5rem;margin-bottom:.75rem;overflow:hidden}
+    .tbl-card-hdr{padding:.6rem 1rem;display:flex;align-items:center;gap:.6rem;background:#1e293b;
+                  border-bottom:1px solid #334155}
+    .tbl-card-hdr h4{font-family:monospace;font-size:.82rem;font-weight:700;color:#e2e8f0}
+    .tbl-card-body{padding:.75rem 1rem}
+    .pii-chip{display:inline-flex;align-items:center;gap:.3rem;background:#1e293b;border:1px solid #334155;
+              border-radius:.375rem;padding:.15rem .5rem;font-size:.72rem;margin:.15rem .15rem 0 0}
+
+    /* Spinner */
+    .spinner{display:inline-block;width:16px;height:16px;border:2px solid #334155;
+             border-top-color:#3b82f6;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:.35rem}
+    @keyframes spin{to{transform:rotate(360deg)}}
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<header>
+  <div>
+    <h1>SAMA &amp; PDPL Compliance Engine</h1>
+    <p>Saudi Central Bank &amp; Personal Data Protection Law — DDL Scanner</p>
+  </div>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:.5rem">
+    <span id="healthDot" class="status-dot"></span>
+    <span id="healthText" style="font-size:.75rem;color:#64748b">connecting…</span>
+  </div>
+</header>
+
+<main>
+
+  <!-- ── Left: Input panel ── -->
+  <div>
+    <div class="card">
+      <div class="card-title">Scan DDL</div>
+
+      <!-- File upload -->
+      <label class="upload-area" for="fileInput">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <span id="fileName">Upload .sql file or paste DDL below</span>
+        <input id="fileInput" type="file" accept=".sql,.txt" />
+      </label>
+
+      <!-- CodeMirror editor -->
+      <div style="margin-bottom:.85rem">
+        <label class="field-label">DDL Source</label>
+        <textarea id="ddlInput" placeholder="CREATE TABLE customers (&#10;  id BIGSERIAL PRIMARY KEY,&#10;  email VARCHAR(255),&#10;  ...&#10;);"></textarea>
+      </div>
+
+      <!-- Dialect + options -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.85rem">
+        <div>
+          <label class="field-label">Database Dialect</label>
+          <select id="dialectSelect">
+            <option value="postgres">PostgreSQL</option>
+            <option value="mysql">MySQL</option>
+            <option value="mssql">SQL Server (MSSQL)</option>
+          </select>
+        </div>
+        <div>
+          <label class="field-label">Sample DDL</label>
+          <select id="sampleSelect">
+            <option value="">— Load a sample —</option>
+            <option value="postgres">PostgreSQL sample</option>
+            <option value="mysql">MySQL sample</option>
+            <option value="mssql">MSSQL sample</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="margin-bottom:1rem">
+        <label class="field-label">Options</label>
+        <label class="checkbox-row"><input id="optFix"   type="checkbox" /> Generate remediation SQL</label>
+        <label class="checkbox-row"><input id="optAudit" type="checkbox" /> Generate audit trail SQL</label>
+      </div>
+
+      <div style="display:flex;gap:.75rem;align-items:center">
+        <button id="scanBtn" class="btn btn-primary">Scan</button>
+        <button id="dlHtmlBtn" class="btn btn-outline" style="display:none">Download HTML report</button>
+      </div>
+
+      <div id="errorBanner" class="error-banner"></div>
+    </div>
+  </div>
+
+  <!-- ── Right: Results panel ── -->
+  <div id="resultsPanel" class="results-panel">
+
+    <!-- Score + summary -->
+    <div class="card" style="margin-bottom:1rem">
+      <div class="score-section">
+        <!-- SVG gauge -->
+        <svg id="gaugesvg" width="110" height="110" viewBox="0 0 110 110">
+          <circle cx="55" cy="55" r="46" fill="none" stroke="#1e293b" stroke-width="9"/>
+          <circle id="gaugeArc" cx="55" cy="55" r="46" fill="none" stroke="#22c55e" stroke-width="9"
+                  stroke-linecap="round" stroke-dasharray="0 289" transform="rotate(-90 55 55)"/>
+          <text id="gaugeScore" x="55" y="51" text-anchor="middle" font-size="20" font-weight="800"
+                fill="#22c55e" font-family="system-ui">—</text>
+          <text x="55" y="66" text-anchor="middle" font-size="9" fill="#64748b" font-family="system-ui">/100</text>
+        </svg>
+        <div>
+          <div id="verdictText" class="verdict-text">—</div>
+          <div id="dialectLabel" style="font-size:.75rem;color:#64748b;margin-top:.25rem"></div>
+        </div>
+      </div>
+
+      <div class="stats-row" id="statsRow"></div>
+      <div class="download-row" id="downloadRow"></div>
+    </div>
+
+    <!-- Tabs -->
+    <div>
+      <div class="tabs" id="tabsBar">
+        <button class="tab-btn active" data-tab="findings">Findings</button>
+        <button class="tab-btn" data-tab="classification">PII Classification</button>
+        <button class="tab-btn" data-tab="tables">Tables</button>
+        <button class="tab-btn" data-tab="rules">Rules</button>
+        <button class="tab-btn" id="tabBtnRemediation" data-tab="remediation" style="display:none">Remediation SQL</button>
+        <button class="tab-btn" id="tabBtnAuditTables" data-tab="auditTables" style="display:none">Audit Tables</button>
+        <button class="tab-btn" id="tabBtnAuditTriggers" data-tab="auditTriggers" style="display:none">Audit Triggers</button>
+        <button class="tab-btn" id="tabBtnSetupSession" data-tab="setupSession" style="display:none">Setup Session</button>
+        <button class="tab-btn" id="tabBtnTraceView" data-tab="traceView" style="display:none">Trace View</button>
+      </div>
+      <div class="tab-body">
+        <!-- Findings -->
+        <div id="tab-findings" class="tab-panel active">
+          <p id="noFindings" style="text-align:center;color:#22c55e;font-weight:600;padding:1.5rem;display:none">
+            No findings — schema is compliant!
+          </p>
+          <table class="rt">
+            <thead><tr><th>Severity</th><th>Rule</th><th>Table</th><th>Column</th><th>Message</th></tr></thead>
+            <tbody id="findingsBody"></tbody>
+          </table>
+        </div>
+
+        <!-- PII Classification -->
+        <div id="tab-classification" class="tab-panel">
+          <table class="rt">
+            <thead><tr><th>Table</th><th>Column</th><th>Tier</th><th>Label</th><th>Pattern</th></tr></thead>
+            <tbody id="classBody"></tbody>
+          </table>
+        </div>
+
+        <!-- Table breakdown -->
+        <div id="tab-tables" class="tab-panel">
+          <div id="tablesBody"></div>
+        </div>
+
+        <!-- Rule results -->
+        <div id="tab-rules" class="tab-panel">
+          <table class="rt">
+            <thead><tr><th>Rule ID</th><th>Name</th><th>Status</th><th>Findings</th></tr></thead>
+            <tbody id="rulesBody"></tbody>
+          </table>
+        </div>
+
+        <!-- SQL output tabs -->
+        <div id="tab-remediation"   class="tab-panel"><pre id="codeRemediation"   class="sql-block"></pre></div>
+        <div id="tab-auditTables"   class="tab-panel"><pre id="codeAuditTables"   class="sql-block"></pre></div>
+        <div id="tab-auditTriggers" class="tab-panel"><pre id="codeAuditTriggers" class="sql-block"></pre></div>
+        <div id="tab-setupSession"  class="tab-panel"><pre id="codeSetupSession"  class="sql-block"></pre></div>
+        <div id="tab-traceView"     class="tab-panel"><pre id="codeTraceView"     class="sql-block"></pre></div>
+      </div>
+    </div>
+
+  </div><!-- /resultsPanel -->
+</main>
+
+<script>
+// ── Sample DDLs ───────────────────────────────────────────────────────────────
+const SAMPLES = {
+  postgres: `-- PostgreSQL sample: intentionally non-compliant
+CREATE TABLE customers (
+    id BIGSERIAL PRIMARY KEY,
+    full_name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    phone_number VARCHAR(20),
+    national_id VARCHAR(20),
+    date_of_birth DATE,
+    credit_score INTEGER,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    created_by VARCHAR(255) NOT NULL
+);
+CREATE TABLE accounts (
+    id BIGSERIAL PRIMARY KEY,
+    customer_id BIGINT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+    account_number VARCHAR(30) UNIQUE NOT NULL,
+    iban VARCHAR(34),
+    balance NUMERIC(18,2) NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    created_by VARCHAR(255) NOT NULL,
+    updated_at TIMESTAMP,
+    updated_by VARCHAR(255)
+);
+CREATE TABLE transactions (
+    id BIGSERIAL PRIMARY KEY,
+    account_id BIGINT NOT NULL REFERENCES accounts(id),
+    amount NUMERIC(18,2) NOT NULL,
+    transaction_date TIMESTAMP NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    created_by VARCHAR(255) NOT NULL
+);
+CREATE TABLE country_codes (
+    code CHAR(2) NOT NULL,
+    name VARCHAR(100) NOT NULL
+);`,
+  mysql: `-- MySQL sample: intentionally non-compliant
+CREATE TABLE users (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(255) NOT NULL,
+    phone_number VARCHAR(20),
+    national_id VARCHAR(20),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by VARCHAR(255) NOT NULL
+) ENGINE=InnoDB;
+CREATE TABLE payments (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    account_number VARCHAR(30),
+    amount DECIMAL(18,2) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by VARCHAR(255) NOT NULL
+) ENGINE=InnoDB;`,
+  mssql: `-- MSSQL sample: intentionally non-compliant
+CREATE TABLE customers (
+    id BIGINT IDENTITY(1,1) PRIMARY KEY,
+    email NVARCHAR(255) NOT NULL,
+    national_id NVARCHAR(20),
+    date_of_birth DATE,
+    created_at DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+    created_by NVARCHAR(255) NOT NULL
+);
+CREATE TABLE accounts (
+    id BIGINT IDENTITY(1,1) PRIMARY KEY,
+    customer_id BIGINT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+    account_number NVARCHAR(30),
+    iban NVARCHAR(34),
+    balance DECIMAL(18,2) NOT NULL DEFAULT 0,
+    created_at DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+    created_by NVARCHAR(255) NOT NULL
+);`,
+};
+
+// ── CodeMirror setup ──────────────────────────────────────────────────────────
+const editor = CodeMirror.fromTextArea(document.getElementById('ddlInput'), {
+  mode: 'text/x-sql',
+  theme: 'dracula',
+  lineNumbers: true,
+  matchBrackets: true,
+  autoCloseBrackets: true,
+  lineWrapping: true,
+  extraKeys: { 'Ctrl-Enter': runScan, 'Cmd-Enter': runScan },
+});
+
+// ── File upload ───────────────────────────────────────────────────────────────
+document.getElementById('fileInput').addEventListener('change', (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  document.getElementById('fileName').textContent = f.name;
+  const reader = new FileReader();
+  reader.onload = (ev) => editor.setValue(ev.target.result);
+  reader.readAsText(f);
+});
+
+// ── Sample loader ─────────────────────────────────────────────────────────────
+document.getElementById('sampleSelect').addEventListener('change', (e) => {
+  const key = e.target.value;
+  if (!key) return;
+  editor.setValue(SAMPLES[key] || '');
+  document.getElementById('dialectSelect').value = key;
+  e.target.value = '';
+});
+
+// ── Tab switching ─────────────────────────────────────────────────────────────
+document.getElementById('tabsBar').addEventListener('click', (e) => {
+  const btn = e.target.closest('.tab-btn');
+  if (!btn || btn.style.display === 'none') return;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+});
+
+function showTab(tabId) {
+  const btn = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
+  if (btn) btn.click();
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function badge(sev) { return `<span class="badge s-${sev}">${esc(sev)}</span>`; }
+function dlBtn(filename, content, label) {
+  const btn = document.createElement('button');
+  btn.className = 'btn btn-outline';
+  btn.textContent = label;
+  btn.onclick = () => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([content], {type:'text/plain'}));
+    a.download = filename; a.click();
+  };
+  return btn;
+}
+
+// ── Health check ──────────────────────────────────────────────────────────────
+(async () => {
+  try {
+    const r = await fetch('/api/health');
+    if (r.ok) {
+      document.getElementById('healthDot').className = 'status-dot online';
+      document.getElementById('healthText').textContent = 'Engine ready';
+    }
+  } catch {
+    document.getElementById('healthDot').className = 'status-dot offline';
+    document.getElementById('healthText').textContent = 'Engine offline';
+  }
+})();
+
+// ── Scan ──────────────────────────────────────────────────────────────────────
+document.getElementById('scanBtn').addEventListener('click', runScan);
+
+async function runScan() {
+  const ddl = editor.getValue().trim();
+  if (!ddl) { showErr('Please paste or upload a DDL file first.'); return; }
+
+  const btn = document.getElementById('scanBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Scanning…';
+  hideErr();
+  document.getElementById('resultsPanel').style.display = 'none';
+
+  try {
+    const resp = await fetch('/api/scan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ddl,
+        dialect:        document.getElementById('dialectSelect').value,
+        generate_fix:   document.getElementById('optFix').checked,
+        generate_audit: document.getElementById('optAudit').checked,
+      }),
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({detail: resp.statusText}));
+      throw new Error(err.detail || resp.statusText);
+    }
+    renderResults(await resp.json());
+  } catch(e) {
+    showErr(e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Scan';
+  }
+}
+
+// ── HTML report download ──────────────────────────────────────────────────────
+document.getElementById('dlHtmlBtn').addEventListener('click', async () => {
+  const ddl = editor.getValue().trim();
+  if (!ddl) return;
+  const resp = await fetch('/api/scan/html', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      ddl,
+      dialect: document.getElementById('dialectSelect').value,
+      generate_fix: false,
+      generate_audit: false,
+    }),
+  });
+  if (!resp.ok) return;
+  const blob = await resp.blob();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'compliance_report.html';
+  a.click();
+});
+
+// ── Render ─────────────────────────────────────────────────────────────────────
+function renderResults(data) {
+  const CIRC = 289.03; // 2π×46
+  const score = data.score ?? data.compliance_score ?? 0;
+  const arc = (score / 100 * CIRC).toFixed(2);
+  const gap = (CIRC - arc).toFixed(2);
+  const color = score >= 80 ? '#22c55e' : score >= 50 ? '#f59e0b' : '#ef4444';
+  const verdict = score >= 80 ? 'COMPLIANT' : score >= 50 ? 'NEEDS ATTENTION' : 'NON-COMPLIANT';
+  const vClass = score >= 80 ? 'verdict-pass' : score >= 50 ? 'verdict-warn' : 'verdict-fail';
+
+  document.getElementById('gaugeArc').setAttribute('stroke-dasharray', `${arc} ${gap}`);
+  document.getElementById('gaugeArc').setAttribute('stroke', color);
+  document.getElementById('gaugeScore').textContent = score;
+  document.getElementById('gaugeScore').setAttribute('fill', color);
+  document.getElementById('verdictText').textContent = verdict;
+  document.getElementById('verdictText').className = `verdict-text ${vClass}`;
+  document.getElementById('dialectLabel').textContent = `Dialect: ${data.dialect?.toUpperCase() ?? ''}`;
+
+  // Stats
+  const summary = data.summary ?? {};
+  const sevBy = summary.findings_by_severity ?? {};
+  const reg = summary.findings_by_regulation ?? {};
+  const findings = data.findings ?? [];
+  const statsRow = document.getElementById('statsRow');
+  statsRow.innerHTML = '';
+  const stats = [
+    ['Tables',   summary.total_tables ?? 0,           ''],
+    ['PII Cols', summary.pii_columns  ?? 0,           'color:#f59e0b'],
+    ['Findings', findings.length,                      findings.length ? 'color:#ef4444' : 'color:#22c55e'],
+    ['CRITICAL', sevBy.critical ?? 0,                  sevBy.critical  ? 'color:#ef4444' : ''],
+    ['HIGH',     sevBy.high     ?? 0,                  sevBy.high      ? 'color:#f97316' : ''],
+    ['SAMA',     reg.SAMA       ?? 0,                  ''],
+    ['PDPL',     reg.PDPL       ?? 0,                  ''],
+  ];
+  stats.forEach(([label, val, style]) => {
+    statsRow.innerHTML += `<div class="stat-chip"><div class="sv" style="${style}">${val}</div><div class="sl">${label}</div></div>`;
+  });
+
+  // Download buttons
+  const dlRow = document.getElementById('downloadRow');
+  dlRow.innerHTML = '';
+  dlRow.appendChild(dlBtn('findings.json', JSON.stringify(data, null, 2), 'findings.json'));
+  document.getElementById('dlHtmlBtn').style.display = '';
+
+  // Hide optional tabs
+  ['tabBtnRemediation','tabBtnAuditTables','tabBtnAuditTriggers','tabBtnSetupSession','tabBtnTraceView'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+
+  if (data.remediation_sql) {
+    document.getElementById('codeRemediation').textContent = data.remediation_sql;
+    document.getElementById('tabBtnRemediation').style.display = '';
+    dlRow.appendChild(dlBtn('remediation_report.sql', data.remediation_sql, 'remediation_report.sql'));
+  }
+  if (data.audit_trail) {
+    const at = data.audit_trail;
+    document.getElementById('codeAuditTables').textContent   = at.audit_tables_sql   ?? '';
+    document.getElementById('codeAuditTriggers').textContent = at.audit_triggers_sql ?? '';
+    document.getElementById('codeSetupSession').textContent  = at.setup_session_sql  ?? '';
+    document.getElementById('codeTraceView').textContent     = at.trace_transaction_sql ?? '';
+    ['tabBtnAuditTables','tabBtnAuditTriggers','tabBtnSetupSession','tabBtnTraceView'].forEach(id => {
+      document.getElementById(id).style.display = '';
+    });
+    if (at.audit_tables_sql)      dlRow.appendChild(dlBtn('audit_tables.sql',      at.audit_tables_sql,      'audit_tables.sql'));
+    if (at.audit_triggers_sql)    dlRow.appendChild(dlBtn('audit_triggers.sql',    at.audit_triggers_sql,    'audit_triggers.sql'));
+    if (at.setup_session_sql)     dlRow.appendChild(dlBtn('setup_session.sql',     at.setup_session_sql,     'setup_session.sql'));
+    if (at.trace_transaction_sql) dlRow.appendChild(dlBtn('trace_transaction.sql', at.trace_transaction_sql, 'trace_transaction.sql'));
+  }
+
+  // Findings table
+  const fb = document.getElementById('findingsBody');
+  fb.innerHTML = '';
+  const noF = document.getElementById('noFindings');
+  if (!findings.length) {
+    noF.style.display = '';
+  } else {
+    noF.style.display = 'none';
+    findings.forEach(f => {
+      fb.innerHTML += `<tr>
+        <td>${badge(f.severity)}</td>
+        <td class="mono" style="color:#7dd3fc">${esc(f.rule_id)}</td>
+        <td class="mono">${esc(f.table)}</td>
+        <td class="mono" style="color:#94a3b8">${esc(f.column||'—')}</td>
+        <td>${esc(f.message)}</td>
+      </tr>`;
+    });
+  }
+
+  // Classification table
+  const cb = document.getElementById('classBody');
+  cb.innerHTML = '';
+  (data.classification ?? []).filter(c => c.is_sensitive).forEach(c => {
+    cb.innerHTML += `<tr>
+      <td class="mono">${esc(c.table)}</td>
+      <td class="mono">${esc(c.column)}</td>
+      <td class="tier-${c.tier}">Tier ${esc(c.tier)}</td>
+      <td>${esc(c.label)}</td>
+      <td class="mono" style="color:#64748b">${esc(c.pattern)}</td>
+    </tr>`;
+  });
+  if (!cb.children.length) {
+    cb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#64748b;padding:1.5rem">No sensitive columns detected</td></tr>';
+  }
+
+  // Table breakdown
+  const tbDiv = document.getElementById('tablesBody');
+  tbDiv.innerHTML = '';
+  (data.tables ?? []).forEach(tbl => {
+    const hasSens = tbl.has_sensitive_data;
+    const piiHtml = (tbl.pii_classifications ?? []).map(p =>
+      `<div class="pii-chip"><span class="mono">${esc(p.column)}</span><span class="tier-${p.tier}">T${p.tier}</span><span style="color:#64748b;font-size:.7rem">${esc(p.label)}</span></div>`
+    ).join('');
+    const findingsHtml = (tbl.findings ?? []).map(f =>
+      `<div style="display:flex;gap:.4rem;align-items:flex-start;margin-bottom:.25rem">
+        ${badge(f.severity)}
+        <span class="mono" style="color:#7dd3fc;font-size:.7rem">${esc(f.rule_id)}</span>
+        <span style="color:#94a3b8;font-size:.75rem">${esc(f.message)}</span>
+      </div>`
+    ).join('');
+    tbDiv.innerHTML += `
+      <div class="tbl-card">
+        <div class="tbl-card-hdr">
+          <h4>${esc(tbl.name)}</h4>
+          <span class="badge ${hasSens ? 's-HIGH' : 's-PASS'}" style="font-size:.65rem">${hasSens ? 'SENSITIVE' : 'CLEAN'}</span>
+          <span style="margin-left:auto;font-size:.72rem;color:#64748b">${tbl.column_count} cols${tbl.sensitive_column_count ? ` · ${tbl.sensitive_column_count} PII` : ''}${tbl.finding_count ? ` · <span style="color:#ef4444">${tbl.finding_count} findings</span>` : ''}</span>
+        </div>
+        <div class="tbl-card-body">
+          ${piiHtml ? `<div style="margin-bottom:.6rem"><div style="font-size:.65rem;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.35rem">PII</div>${piiHtml}</div>` : ''}
+          ${findingsHtml ? `<div style="margin-top:.4rem"><div style="font-size:.65rem;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.35rem">Findings</div>${findingsHtml}</div>` : '<div style="color:#64748b;font-size:.75rem">No findings for this table</div>'}
+        </div>
+      </div>`;
+  });
+
+  // Rules table
+  const rb = document.getElementById('rulesBody');
+  rb.innerHTML = '';
+  (data.rule_results ?? []).forEach(r => {
+    const pass = !r.findings || r.findings.length === 0;
+    rb.innerHTML += `<tr>
+      <td class="mono" style="color:#7dd3fc">${esc(r.rule_id)}</td>
+      <td>${esc(r.rule_name ?? r.rule_id)}</td>
+      <td>${badge(r.skipped ? 'SKIP' : pass ? 'PASS' : 'FAIL')}</td>
+      <td style="color:#64748b">${(r.findings||[]).length}</td>
+    </tr>`;
+  });
+
+  document.getElementById('resultsPanel').style.display = 'block';
+  showTab('findings');
+  document.getElementById('resultsPanel').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// ── Error helpers ─────────────────────────────────────────────────────────────
+function showErr(msg) {
+  const el = document.getElementById('errorBanner');
+  el.textContent = msg; el.style.display = '';
+}
+function hideErr() { document.getElementById('errorBanner').style.display = 'none'; }
+</script>
+</body>
+</html>

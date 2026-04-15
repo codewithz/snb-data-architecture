@@ -1,0 +1,30 @@
+-- ┌──────────────────────────────────────────────────────────────────────────┐
+-- │ [PDPL-DSR-001] Create data_subject_requests table
+-- │ PDPL Articles 14–18 — access, rectification, erasure, portability rights
+-- └──────────────────────────────────────────────────────────────────────────┘
+IF OBJECT_ID('data_subject_requests', 'U') IS NULL
+BEGIN
+    CREATE TABLE data_subject_requests (
+        id                BIGINT           IDENTITY(1,1) PRIMARY KEY,
+        data_subject_id   BIGINT           NOT NULL,
+        request_type      NVARCHAR(50)     NOT NULL,
+        status            NVARCHAR(50)     NOT NULL DEFAULT 'PENDING',
+        requested_at      DATETIME2        NOT NULL DEFAULT GETUTCDATE(),
+        response_due_date AS CAST(DATEADD(DAY, 30, requested_at) AS DATE) PERSISTED,
+        completed_at      DATETIME2        NULL,
+        rejection_reason  NVARCHAR(MAX)    NULL,
+        handler_id        NVARCHAR(255)    NULL,
+        notes             NVARCHAR(MAX)    NULL,
+        is_deleted        BIT              NOT NULL DEFAULT 0,
+        deleted_at        DATETIME2        NULL,
+        deleted_by        NVARCHAR(255)    NULL,
+        created_at        DATETIME2        NOT NULL DEFAULT GETUTCDATE(),
+        created_by        NVARCHAR(255)    NOT NULL DEFAULT SYSTEM_USER,
+        updated_at        DATETIME2        NULL,
+        updated_by        NVARCHAR(255)    NULL
+    );
+
+    CREATE INDEX idx_dsr_data_subject ON data_subject_requests (data_subject_id);
+    CREATE INDEX idx_dsr_status ON data_subject_requests (status, requested_at DESC);
+END;
+GO

@@ -1,0 +1,21 @@
+-- ┌──────────────────────────────────────────────────────────────────────────┐
+-- │ Audit log table → {{ table }}_audit_log
+-- └──────────────────────────────────────────────────────────────────────────┘
+CREATE TABLE IF NOT EXISTS {{ table }}_audit_log (
+    audit_id        BIGINT          AUTO_INCREMENT PRIMARY KEY,
+    record_id       BIGINT          NOT NULL,
+    operation       VARCHAR(10)     NOT NULL
+                    CHECK (operation IN ('INSERT', 'UPDATE', 'DELETE')),
+    performed_by    VARCHAR(255)    NOT NULL DEFAULT 'UNKNOWN',
+    performed_at    DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    application_id  VARCHAR(100)    NULL,
+    source_ip       VARCHAR(45)     NULL,
+    correlation_id  VARCHAR(36)     NULL,
+    session_id      VARCHAR(255)    NULL,
+    old_values      JSON            NULL,
+    new_values      JSON            NULL,
+    INDEX idx_{{ table }}_audit_record      (record_id),
+    INDEX idx_{{ table }}_audit_performed   (performed_at DESC),
+    INDEX idx_{{ table }}_audit_correlation (correlation_id),
+    INDEX idx_{{ table }}_audit_operation   (operation, performed_at DESC)
+);

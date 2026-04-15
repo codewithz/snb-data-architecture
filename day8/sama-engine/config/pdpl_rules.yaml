@@ -1,0 +1,106 @@
+rules:
+  PDPL-ENC-001:
+    name: "Encryption of Sensitive Columns"
+    description: >
+      Tier 1 (directly identifying) and Tier 4 (PDPL Art.3 sensitive categories)
+      columns must be stored using encrypted data types (BYTEA in PostgreSQL,
+      VARBINARY in MySQL/MSSQL) per PDPL Article 8 security requirements.
+    severity: CRITICAL
+    enabled: true
+    applies_to_tiers: [1, 4]
+    encrypted_types:
+      postgres:
+        - bytea
+      mysql:
+        - varbinary
+        - blob
+      mssql:
+        - varbinary
+
+  PDPL-CON-001:
+    name: "Consent Records Table Required"
+    description: >
+      The schema must include a consent_records table to track data subject
+      consent per PDPL Article 10 (consent as lawful basis for processing).
+    severity: CRITICAL
+    enabled: true
+    required_table: "consent_records"
+    required_columns:
+      - name: id
+        nullable: false
+      - name: data_subject_id
+        nullable: false
+      - name: purpose
+        nullable: false
+      - name: consent_given
+        types: [boolean, tinyint, bit]
+        nullable: false
+      - name: consent_date
+        types: [timestamp, datetime, timestamptz, datetime2, date]
+        nullable: false
+      - name: withdrawal_date
+        types: [timestamp, datetime, timestamptz, datetime2, date]
+        nullable: true
+      - name: consent_version
+        types: [varchar, text, nvarchar, int]
+        nullable: true
+
+  PDPL-DSR-001:
+    name: "Data Subject Requests Table Required"
+    description: >
+      The schema must include a data_subject_requests table to handle
+      access, rectification, erasure, and portability requests per PDPL Articles 14-18.
+    severity: CRITICAL
+    enabled: true
+    required_table: "data_subject_requests"
+    required_columns:
+      - name: id
+        nullable: false
+      - name: data_subject_id
+        nullable: false
+      - name: request_type
+        types: [varchar, text, nvarchar]
+        nullable: false
+        allowed_values:
+          - ACCESS
+          - RECTIFICATION
+          - ERASURE
+          - PORTABILITY
+          - RESTRICTION
+          - OBJECTION
+      - name: status
+        types: [varchar, text, nvarchar]
+        nullable: false
+      - name: requested_at
+        types: [timestamp, datetime, timestamptz, datetime2]
+        nullable: false
+      - name: completed_at
+        types: [timestamp, datetime, timestamptz, datetime2]
+        nullable: true
+      - name: response_due_date
+        types: [timestamp, datetime, timestamptz, datetime2, date]
+        nullable: true
+
+  PDPL-MIN-001:
+    name: "Data Minimization Principle"
+    description: >
+      Tables with high concentrations of Tier 1/Tier 4 columns (>5 sensitive columns)
+      may violate PDPL Article 7 data minimization principle and should be reviewed.
+    severity: MEDIUM
+    enabled: true
+    max_tier1_columns: 5
+    max_tier4_columns: 3
+    applies_to_tiers: [1, 4]
+
+  PDPL-PUR-001:
+    name: "Purpose Limitation"
+    description: >
+      Tables containing Tier 1 or Tier 4 data should have a purpose or category
+      column to document the lawful basis for collection per PDPL Article 6.
+    severity: LOW
+    enabled: true
+    suggested_columns:
+      - data_purpose
+      - processing_basis
+      - collection_purpose
+    applies_to_tiers: [1, 4]

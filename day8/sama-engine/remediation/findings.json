@@ -1,0 +1,668 @@
+{
+  "scan_timestamp": "2026-04-15T09:03:58.305511+00:00",
+  "dialect": "postgres",
+  "ddl_source": "tests/sample_ddls/postgres_sample.sql",
+  "passed": false,
+  "compliance_score": 0.0,
+  "summary": {
+    "total_findings": 36,
+    "by_severity": {
+      "CRITICAL": 14,
+      "HIGH": 17,
+      "MEDIUM": 5,
+      "LOW": 0,
+      "INFO": 0
+    },
+    "rules_run": 10,
+    "rules_passed": 0,
+    "rules_failed": 10,
+    "rules_skipped": 0
+  },
+  "schema_summary": {
+    "table_count": 5,
+    "tables": [
+      "customers",
+      "accounts",
+      "transactions",
+      "patient_health_records",
+      "country_codes"
+    ],
+    "sensitive_columns": 14,
+    "parse_errors": 0
+  },
+  "rule_results": [
+    {
+      "rule_id": "SAMA-INT-001",
+      "rule_name": "Primary Key Required",
+      "passed": false,
+      "skipped": false,
+      "skip_reason": "",
+      "findings": [
+        {
+          "rule_id": "SAMA-INT-001",
+          "rule_name": "Primary Key Required",
+          "severity": "HIGH",
+          "table": "country_codes",
+          "column": null,
+          "message": "Table 'country_codes' has no primary key",
+          "detail": "A primary key is required for row-level uniqueness, audit log referencing (record_id FK), and reliable replication/CDC pipelines.",
+          "remediation": "ALTER TABLE country_codes ADD COLUMN id BIGSERIAL PRIMARY KEY;",
+          "tags": [
+            "SAMA",
+            "integrity",
+            "primary-key"
+          ]
+        }
+      ]
+    },
+    {
+      "rule_id": "SAMA-AUD-001",
+      "rule_name": "Audit Trail Columns",
+      "passed": false,
+      "skipped": false,
+      "skip_reason": "",
+      "findings": [
+        {
+          "rule_id": "SAMA-AUD-001",
+          "rule_name": "Audit Trail Columns",
+          "severity": "HIGH",
+          "table": "customers",
+          "column": "updated_at",
+          "message": "Missing required audit column 'updated_at'",
+          "detail": "Table 'customers' does not have a 'updated_at' column. SAMA CSF §3.3.5 requires full audit trail metadata on all tables.",
+          "remediation": "ALTER TABLE customers ADD COLUMN updated_at TIMESTAMP NOT NULL DEFAULT NOW();",
+          "tags": [
+            "SAMA",
+            "audit",
+            "CSF-3.3.5"
+          ]
+        },
+        {
+          "rule_id": "SAMA-AUD-001",
+          "rule_name": "Audit Trail Columns",
+          "severity": "HIGH",
+          "table": "customers",
+          "column": "updated_by",
+          "message": "Missing required audit column 'updated_by'",
+          "detail": "Table 'customers' does not have a 'updated_by' column. SAMA CSF §3.3.5 requires full audit trail metadata on all tables.",
+          "remediation": "ALTER TABLE customers ADD COLUMN updated_by TIMESTAMP NOT NULL DEFAULT NOW();",
+          "tags": [
+            "SAMA",
+            "audit",
+            "CSF-3.3.5"
+          ]
+        },
+        {
+          "rule_id": "SAMA-AUD-001",
+          "rule_name": "Audit Trail Columns",
+          "severity": "HIGH",
+          "table": "country_codes",
+          "column": "created_at",
+          "message": "Missing required audit column 'created_at'",
+          "detail": "Table 'country_codes' does not have a 'created_at' column. SAMA CSF §3.3.5 requires full audit trail metadata on all tables.",
+          "remediation": "ALTER TABLE country_codes ADD COLUMN created_at TIMESTAMP NOT NULL DEFAULT NOW();",
+          "tags": [
+            "SAMA",
+            "audit",
+            "CSF-3.3.5"
+          ]
+        },
+        {
+          "rule_id": "SAMA-AUD-001",
+          "rule_name": "Audit Trail Columns",
+          "severity": "HIGH",
+          "table": "country_codes",
+          "column": "created_by",
+          "message": "Missing required audit column 'created_by'",
+          "detail": "Table 'country_codes' does not have a 'created_by' column. SAMA CSF §3.3.5 requires full audit trail metadata on all tables.",
+          "remediation": "ALTER TABLE country_codes ADD COLUMN created_by TIMESTAMP NOT NULL DEFAULT NOW();",
+          "tags": [
+            "SAMA",
+            "audit",
+            "CSF-3.3.5"
+          ]
+        },
+        {
+          "rule_id": "SAMA-AUD-001",
+          "rule_name": "Audit Trail Columns",
+          "severity": "HIGH",
+          "table": "country_codes",
+          "column": "updated_at",
+          "message": "Missing required audit column 'updated_at'",
+          "detail": "Table 'country_codes' does not have a 'updated_at' column. SAMA CSF §3.3.5 requires full audit trail metadata on all tables.",
+          "remediation": "ALTER TABLE country_codes ADD COLUMN updated_at TIMESTAMP NOT NULL DEFAULT NOW();",
+          "tags": [
+            "SAMA",
+            "audit",
+            "CSF-3.3.5"
+          ]
+        },
+        {
+          "rule_id": "SAMA-AUD-001",
+          "rule_name": "Audit Trail Columns",
+          "severity": "HIGH",
+          "table": "country_codes",
+          "column": "updated_by",
+          "message": "Missing required audit column 'updated_by'",
+          "detail": "Table 'country_codes' does not have a 'updated_by' column. SAMA CSF §3.3.5 requires full audit trail metadata on all tables.",
+          "remediation": "ALTER TABLE country_codes ADD COLUMN updated_by TIMESTAMP NOT NULL DEFAULT NOW();",
+          "tags": [
+            "SAMA",
+            "audit",
+            "CSF-3.3.5"
+          ]
+        }
+      ]
+    },
+    {
+      "rule_id": "SAMA-AUD-002",
+      "rule_name": "Soft Delete Pattern",
+      "passed": false,
+      "skipped": false,
+      "skip_reason": "",
+      "findings": [
+        {
+          "rule_id": "SAMA-AUD-002",
+          "rule_name": "Soft Delete Pattern",
+          "severity": "HIGH",
+          "table": "customers",
+          "column": null,
+          "message": "Sensitive table missing soft-delete column 'is_deleted'",
+          "detail": "Table 'customers' contains sensitive data (tiers: [1, 3]) but lacks 'is_deleted'. SAMA CSF §3.3.7 prohibits hard-deletes on regulated data.",
+          "remediation": "ALTER TABLE customers ADD COLUMN is_deleted BOOLEAN NOT NULL DEFAULT FALSE;",
+          "tags": [
+            "SAMA",
+            "soft-delete",
+            "CSF-3.3.7"
+          ]
+        },
+        {
+          "rule_id": "SAMA-AUD-002",
+          "rule_name": "Soft Delete Pattern",
+          "severity": "HIGH",
+          "table": "customers",
+          "column": null,
+          "message": "Sensitive table missing soft-delete column 'deleted_at'",
+          "detail": "Table 'customers' contains sensitive data (tiers: [1, 3]) but lacks 'deleted_at'. SAMA CSF §3.3.7 prohibits hard-deletes on regulated data.",
+          "remediation": "ALTER TABLE customers ADD COLUMN deleted_at TIMESTAMP NULL;",
+          "tags": [
+            "SAMA",
+            "soft-delete",
+            "CSF-3.3.7"
+          ]
+        },
+        {
+          "rule_id": "SAMA-AUD-002",
+          "rule_name": "Soft Delete Pattern",
+          "severity": "HIGH",
+          "table": "customers",
+          "column": null,
+          "message": "Sensitive table missing soft-delete column 'deleted_by'",
+          "detail": "Table 'customers' contains sensitive data (tiers: [1, 3]) but lacks 'deleted_by'. SAMA CSF §3.3.7 prohibits hard-deletes on regulated data.",
+          "remediation": "ALTER TABLE customers ADD COLUMN deleted_by VARCHAR(255) NULL;",
+          "tags": [
+            "SAMA",
+            "soft-delete",
+            "CSF-3.3.7"
+          ]
+        },
+        {
+          "rule_id": "SAMA-AUD-002",
+          "rule_name": "Soft Delete Pattern",
+          "severity": "HIGH",
+          "table": "accounts",
+          "column": null,
+          "message": "Sensitive table missing soft-delete column 'is_deleted'",
+          "detail": "Table 'accounts' contains sensitive data (tiers: [2, 3]) but lacks 'is_deleted'. SAMA CSF §3.3.7 prohibits hard-deletes on regulated data.",
+          "remediation": "ALTER TABLE accounts ADD COLUMN is_deleted BOOLEAN NOT NULL DEFAULT FALSE;",
+          "tags": [
+            "SAMA",
+            "soft-delete",
+            "CSF-3.3.7"
+          ]
+        },
+        {
+          "rule_id": "SAMA-AUD-002",
+          "rule_name": "Soft Delete Pattern",
+          "severity": "HIGH",
+          "table": "accounts",
+          "column": null,
+          "message": "Sensitive table missing soft-delete column 'deleted_at'",
+          "detail": "Table 'accounts' contains sensitive data (tiers: [2, 3]) but lacks 'deleted_at'. SAMA CSF §3.3.7 prohibits hard-deletes on regulated data.",
+          "remediation": "ALTER TABLE accounts ADD COLUMN deleted_at TIMESTAMP NULL;",
+          "tags": [
+            "SAMA",
+            "soft-delete",
+            "CSF-3.3.7"
+          ]
+        },
+        {
+          "rule_id": "SAMA-AUD-002",
+          "rule_name": "Soft Delete Pattern",
+          "severity": "HIGH",
+          "table": "accounts",
+          "column": null,
+          "message": "Sensitive table missing soft-delete column 'deleted_by'",
+          "detail": "Table 'accounts' contains sensitive data (tiers: [2, 3]) but lacks 'deleted_by'. SAMA CSF §3.3.7 prohibits hard-deletes on regulated data.",
+          "remediation": "ALTER TABLE accounts ADD COLUMN deleted_by VARCHAR(255) NULL;",
+          "tags": [
+            "SAMA",
+            "soft-delete",
+            "CSF-3.3.7"
+          ]
+        },
+        {
+          "rule_id": "SAMA-AUD-002",
+          "rule_name": "Soft Delete Pattern",
+          "severity": "HIGH",
+          "table": "patient_health_records",
+          "column": null,
+          "message": "Sensitive table missing soft-delete column 'is_deleted'",
+          "detail": "Table 'patient_health_records' contains sensitive data (tiers: [2, 4]) but lacks 'is_deleted'. SAMA CSF §3.3.7 prohibits hard-deletes on regulated data.",
+          "remediation": "ALTER TABLE patient_health_records ADD COLUMN is_deleted BOOLEAN NOT NULL DEFAULT FALSE;",
+          "tags": [
+            "SAMA",
+            "soft-delete",
+            "CSF-3.3.7"
+          ]
+        },
+        {
+          "rule_id": "SAMA-AUD-002",
+          "rule_name": "Soft Delete Pattern",
+          "severity": "HIGH",
+          "table": "patient_health_records",
+          "column": null,
+          "message": "Sensitive table missing soft-delete column 'deleted_at'",
+          "detail": "Table 'patient_health_records' contains sensitive data (tiers: [2, 4]) but lacks 'deleted_at'. SAMA CSF §3.3.7 prohibits hard-deletes on regulated data.",
+          "remediation": "ALTER TABLE patient_health_records ADD COLUMN deleted_at TIMESTAMP NULL;",
+          "tags": [
+            "SAMA",
+            "soft-delete",
+            "CSF-3.3.7"
+          ]
+        },
+        {
+          "rule_id": "SAMA-AUD-002",
+          "rule_name": "Soft Delete Pattern",
+          "severity": "HIGH",
+          "table": "patient_health_records",
+          "column": null,
+          "message": "Sensitive table missing soft-delete column 'deleted_by'",
+          "detail": "Table 'patient_health_records' contains sensitive data (tiers: [2, 4]) but lacks 'deleted_by'. SAMA CSF §3.3.7 prohibits hard-deletes on regulated data.",
+          "remediation": "ALTER TABLE patient_health_records ADD COLUMN deleted_by VARCHAR(255) NULL;",
+          "tags": [
+            "SAMA",
+            "soft-delete",
+            "CSF-3.3.7"
+          ]
+        }
+      ]
+    },
+    {
+      "rule_id": "SAMA-AUD-003",
+      "rule_name": "Audit Log Table Required",
+      "passed": false,
+      "skipped": false,
+      "skip_reason": "",
+      "findings": [
+        {
+          "rule_id": "SAMA-AUD-003",
+          "rule_name": "Audit Log Table Required",
+          "severity": "CRITICAL",
+          "table": "customers",
+          "column": null,
+          "message": "No audit log table found for 'customers'",
+          "detail": "Table 'customers' contains Tier [1, 3] data but 'customers_audit_log' does not exist in the schema.",
+          "remediation": "CREATE TABLE customers_audit_log (\n    id BIGSERIAL PRIMARY KEY,\n    record_id BIGINT NOT NULL,\n    operation VARCHAR(10) NOT NULL CHECK (operation IN ('INSERT','UPDATE','DELETE')),\n    changed_at TIMESTAMP NOT NULL DEFAULT NOW(),\n    changed_by VARCHAR(255) NOT NULL,\n    old_values JSONB,\n    new_values JSONB\n);",
+          "tags": [
+            "SAMA",
+            "audit-log",
+            "CSF-3.3.5"
+          ]
+        },
+        {
+          "rule_id": "SAMA-AUD-003",
+          "rule_name": "Audit Log Table Required",
+          "severity": "CRITICAL",
+          "table": "accounts",
+          "column": null,
+          "message": "No audit log table found for 'accounts'",
+          "detail": "Table 'accounts' contains Tier [3] data but 'accounts_audit_log' does not exist in the schema.",
+          "remediation": "CREATE TABLE accounts_audit_log (\n    id BIGSERIAL PRIMARY KEY,\n    record_id BIGINT NOT NULL,\n    operation VARCHAR(10) NOT NULL CHECK (operation IN ('INSERT','UPDATE','DELETE')),\n    changed_at TIMESTAMP NOT NULL DEFAULT NOW(),\n    changed_by VARCHAR(255) NOT NULL,\n    old_values JSONB,\n    new_values JSONB\n);",
+          "tags": [
+            "SAMA",
+            "audit-log",
+            "CSF-3.3.5"
+          ]
+        },
+        {
+          "rule_id": "SAMA-AUD-003",
+          "rule_name": "Audit Log Table Required",
+          "severity": "CRITICAL",
+          "table": "patient_health_records",
+          "column": null,
+          "message": "No audit log table found for 'patient_health_records'",
+          "detail": "Table 'patient_health_records' contains Tier [4] data but 'patient_health_records_audit_log' does not exist in the schema.",
+          "remediation": "CREATE TABLE patient_health_records_audit_log (\n    id BIGSERIAL PRIMARY KEY,\n    record_id BIGINT NOT NULL,\n    operation VARCHAR(10) NOT NULL CHECK (operation IN ('INSERT','UPDATE','DELETE')),\n    changed_at TIMESTAMP NOT NULL DEFAULT NOW(),\n    changed_by VARCHAR(255) NOT NULL,\n    old_values JSONB,\n    new_values JSONB\n);",
+          "tags": [
+            "SAMA",
+            "audit-log",
+            "CSF-3.3.5"
+          ]
+        }
+      ]
+    },
+    {
+      "rule_id": "PDPL-ENC-001",
+      "rule_name": "PII Column Encryption",
+      "passed": false,
+      "skipped": false,
+      "skip_reason": "",
+      "findings": [
+        {
+          "rule_id": "PDPL-ENC-001",
+          "rule_name": "PII Column Encryption",
+          "severity": "CRITICAL",
+          "table": "customers",
+          "column": "full_name",
+          "message": "Tier 1 column 'full_name' is not stored as an encrypted type (current: 'varchar')",
+          "detail": "Column 'customers.full_name' is classified as Tier 1 (Directly Identifying). For postgres, encrypted storage types are: ['bytea']. PDPL Article 8 requires sensitive personal data to be encrypted at rest.",
+          "remediation": "-- Migrate customers.full_name to encrypted storage:\nALTER TABLE customers ADD COLUMN full_name_encrypted BYTEA;\nUPDATE customers SET full_name_encrypted = pgp_sym_encrypt(full_name::TEXT, current_setting('app.encryption_key'));\nALTER TABLE customers DROP COLUMN full_name;\nALTER TABLE customers RENAME COLUMN full_name_encrypted TO full_name;",
+          "tags": [
+            "PDPL",
+            "encryption",
+            "Art.8"
+          ]
+        },
+        {
+          "rule_id": "PDPL-ENC-001",
+          "rule_name": "PII Column Encryption",
+          "severity": "CRITICAL",
+          "table": "customers",
+          "column": "email",
+          "message": "Tier 1 column 'email' is not stored as an encrypted type (current: 'varchar')",
+          "detail": "Column 'customers.email' is classified as Tier 1 (Directly Identifying). For postgres, encrypted storage types are: ['bytea']. PDPL Article 8 requires sensitive personal data to be encrypted at rest.",
+          "remediation": "-- Migrate customers.email to encrypted storage:\nALTER TABLE customers ADD COLUMN email_encrypted BYTEA;\nUPDATE customers SET email_encrypted = pgp_sym_encrypt(email::TEXT, current_setting('app.encryption_key'));\nALTER TABLE customers DROP COLUMN email;\nALTER TABLE customers RENAME COLUMN email_encrypted TO email;",
+          "tags": [
+            "PDPL",
+            "encryption",
+            "Art.8"
+          ]
+        },
+        {
+          "rule_id": "PDPL-ENC-001",
+          "rule_name": "PII Column Encryption",
+          "severity": "CRITICAL",
+          "table": "customers",
+          "column": "phone_number",
+          "message": "Tier 1 column 'phone_number' is not stored as an encrypted type (current: 'varchar')",
+          "detail": "Column 'customers.phone_number' is classified as Tier 1 (Directly Identifying). For postgres, encrypted storage types are: ['bytea']. PDPL Article 8 requires sensitive personal data to be encrypted at rest.",
+          "remediation": "-- Migrate customers.phone_number to encrypted storage:\nALTER TABLE customers ADD COLUMN phone_number_encrypted BYTEA;\nUPDATE customers SET phone_number_encrypted = pgp_sym_encrypt(phone_number::TEXT, current_setting('app.encryption_key'));\nALTER TABLE customers DROP COLUMN phone_number;\nALTER TABLE customers RENAME COLUMN phone_number_encrypted TO phone_number;",
+          "tags": [
+            "PDPL",
+            "encryption",
+            "Art.8"
+          ]
+        },
+        {
+          "rule_id": "PDPL-ENC-001",
+          "rule_name": "PII Column Encryption",
+          "severity": "CRITICAL",
+          "table": "customers",
+          "column": "national_id",
+          "message": "Tier 1 column 'national_id' is not stored as an encrypted type (current: 'varchar')",
+          "detail": "Column 'customers.national_id' is classified as Tier 1 (Directly Identifying). For postgres, encrypted storage types are: ['bytea']. PDPL Article 8 requires sensitive personal data to be encrypted at rest.",
+          "remediation": "-- Migrate customers.national_id to encrypted storage:\nALTER TABLE customers ADD COLUMN national_id_encrypted BYTEA;\nUPDATE customers SET national_id_encrypted = pgp_sym_encrypt(national_id::TEXT, current_setting('app.encryption_key'));\nALTER TABLE customers DROP COLUMN national_id;\nALTER TABLE customers RENAME COLUMN national_id_encrypted TO national_id;",
+          "tags": [
+            "PDPL",
+            "encryption",
+            "Art.8"
+          ]
+        },
+        {
+          "rule_id": "PDPL-ENC-001",
+          "rule_name": "PII Column Encryption",
+          "severity": "CRITICAL",
+          "table": "customers",
+          "column": "date_of_birth",
+          "message": "Tier 1 column 'date_of_birth' is not stored as an encrypted type (current: 'date')",
+          "detail": "Column 'customers.date_of_birth' is classified as Tier 1 (Directly Identifying). For postgres, encrypted storage types are: ['bytea']. PDPL Article 8 requires sensitive personal data to be encrypted at rest.",
+          "remediation": "-- Migrate customers.date_of_birth to encrypted storage:\nALTER TABLE customers ADD COLUMN date_of_birth_encrypted BYTEA;\nUPDATE customers SET date_of_birth_encrypted = pgp_sym_encrypt(date_of_birth::TEXT, current_setting('app.encryption_key'));\nALTER TABLE customers DROP COLUMN date_of_birth;\nALTER TABLE customers RENAME COLUMN date_of_birth_encrypted TO date_of_birth;",
+          "tags": [
+            "PDPL",
+            "encryption",
+            "Art.8"
+          ]
+        },
+        {
+          "rule_id": "PDPL-ENC-001",
+          "rule_name": "PII Column Encryption",
+          "severity": "CRITICAL",
+          "table": "patient_health_records",
+          "column": "diagnosis",
+          "message": "Tier 4 column 'diagnosis' is not stored as an encrypted type (current: 'text')",
+          "detail": "Column 'patient_health_records.diagnosis' is classified as Tier 4 (PDPL Art.3 Sensitive). For postgres, encrypted storage types are: ['bytea']. PDPL Article 8 requires sensitive personal data to be encrypted at rest.",
+          "remediation": "-- Migrate patient_health_records.diagnosis to encrypted storage:\nALTER TABLE patient_health_records ADD COLUMN diagnosis_encrypted BYTEA;\nUPDATE patient_health_records SET diagnosis_encrypted = pgp_sym_encrypt(diagnosis::TEXT, current_setting('app.encryption_key'));\nALTER TABLE patient_health_records DROP COLUMN diagnosis;\nALTER TABLE patient_health_records RENAME COLUMN diagnosis_encrypted TO diagnosis;",
+          "tags": [
+            "PDPL",
+            "encryption",
+            "Art.8"
+          ]
+        },
+        {
+          "rule_id": "PDPL-ENC-001",
+          "rule_name": "PII Column Encryption",
+          "severity": "CRITICAL",
+          "table": "patient_health_records",
+          "column": "medical_record",
+          "message": "Tier 4 column 'medical_record' is not stored as an encrypted type (current: 'text')",
+          "detail": "Column 'patient_health_records.medical_record' is classified as Tier 4 (PDPL Art.3 Sensitive). For postgres, encrypted storage types are: ['bytea']. PDPL Article 8 requires sensitive personal data to be encrypted at rest.",
+          "remediation": "-- Migrate patient_health_records.medical_record to encrypted storage:\nALTER TABLE patient_health_records ADD COLUMN medical_record_encrypted BYTEA;\nUPDATE patient_health_records SET medical_record_encrypted = pgp_sym_encrypt(medical_record::TEXT, current_setting('app.encryption_key'));\nALTER TABLE patient_health_records DROP COLUMN medical_record;\nALTER TABLE patient_health_records RENAME COLUMN medical_record_encrypted TO medical_record;",
+          "tags": [
+            "PDPL",
+            "encryption",
+            "Art.8"
+          ]
+        },
+        {
+          "rule_id": "PDPL-ENC-001",
+          "rule_name": "PII Column Encryption",
+          "severity": "CRITICAL",
+          "table": "patient_health_records",
+          "column": "prescription",
+          "message": "Tier 4 column 'prescription' is not stored as an encrypted type (current: 'text')",
+          "detail": "Column 'patient_health_records.prescription' is classified as Tier 4 (PDPL Art.3 Sensitive). For postgres, encrypted storage types are: ['bytea']. PDPL Article 8 requires sensitive personal data to be encrypted at rest.",
+          "remediation": "-- Migrate patient_health_records.prescription to encrypted storage:\nALTER TABLE patient_health_records ADD COLUMN prescription_encrypted BYTEA;\nUPDATE patient_health_records SET prescription_encrypted = pgp_sym_encrypt(prescription::TEXT, current_setting('app.encryption_key'));\nALTER TABLE patient_health_records DROP COLUMN prescription;\nALTER TABLE patient_health_records RENAME COLUMN prescription_encrypted TO prescription;",
+          "tags": [
+            "PDPL",
+            "encryption",
+            "Art.8"
+          ]
+        }
+      ]
+    },
+    {
+      "rule_id": "SAMA-REF-001",
+      "rule_name": "No Cascade Delete on Sensitive Tables",
+      "passed": false,
+      "skipped": false,
+      "skip_reason": "",
+      "findings": [
+        {
+          "rule_id": "SAMA-REF-001",
+          "rule_name": "No Cascade Delete on Sensitive Tables",
+          "severity": "CRITICAL",
+          "table": "accounts",
+          "column": "customer_id",
+          "message": "FK from 'accounts(customer_id)' → 'customers' uses CASCADE DELETE",
+          "detail": "Table 'customers' contains Tier [1, 3] data. CASCADE DELETE would permanently erase regulated records and violates SAMA data retention requirements.",
+          "remediation": "-- Change ON DELETE CASCADE to ON DELETE RESTRICT:\n-- Drop and recreate the FK constraint on accounts(customer_id)\n-- to reference customers with ON DELETE RESTRICT.",
+          "tags": [
+            "SAMA",
+            "referential",
+            "FK",
+            "cascade"
+          ]
+        }
+      ]
+    },
+    {
+      "rule_id": "PDPL-CON-001",
+      "rule_name": "Consent Records Table Required",
+      "passed": false,
+      "skipped": false,
+      "skip_reason": "",
+      "findings": [
+        {
+          "rule_id": "PDPL-CON-001",
+          "rule_name": "Consent Records Table Required",
+          "severity": "CRITICAL",
+          "table": "consent_records",
+          "column": null,
+          "message": "consent_records table is missing from the schema",
+          "detail": "PDPL Article 10 requires that consent be recorded with the data subject's identity, purpose, and date. A consent_records table must be present.",
+          "remediation": "CREATE TABLE consent_records (\n    id BIGSERIAL PRIMARY KEY,\n    data_subject_id BIGINT NOT NULL,\n    purpose VARCHAR(500) NOT NULL,\n    consent_given BOOLEAN NOT NULL DEFAULT FALSE,\n    consent_date TIMESTAMP NOT NULL DEFAULT NOW(),\n    withdrawal_date TIMESTAMP NULL,\n    consent_version VARCHAR(50),\n    created_at TIMESTAMP NOT NULL DEFAULT NOW(),\n    created_by VARCHAR(255) NOT NULL,\n    updated_at TIMESTAMP,\n    updated_by VARCHAR(255)\n);",
+          "tags": [
+            "PDPL",
+            "consent",
+            "Art.10"
+          ]
+        }
+      ]
+    },
+    {
+      "rule_id": "PDPL-DSR-001",
+      "rule_name": "Data Subject Requests Table Required",
+      "passed": false,
+      "skipped": false,
+      "skip_reason": "",
+      "findings": [
+        {
+          "rule_id": "PDPL-DSR-001",
+          "rule_name": "Data Subject Requests Table Required",
+          "severity": "CRITICAL",
+          "table": "data_subject_requests",
+          "column": null,
+          "message": "data_subject_requests table is missing from the schema",
+          "detail": "PDPL Articles 14–18 grant data subjects the right to access, rectify, erase, and port their data. A data_subject_requests table is required to track these requests and their fulfilment.",
+          "remediation": "CREATE TABLE data_subject_requests (\n    id BIGSERIAL PRIMARY KEY,\n    data_subject_id BIGINT NOT NULL,\n    request_type VARCHAR(50) NOT NULL\n        CHECK (request_type IN ('ACCESS','RECTIFICATION','ERASURE','PORTABILITY','RESTRICTION','OBJECTION')),\n    status VARCHAR(50) NOT NULL DEFAULT 'PENDING',\n    requested_at TIMESTAMP NOT NULL DEFAULT NOW(),\n    completed_at TIMESTAMP NULL,\n    response_due_date DATE NULL,\n    notes TEXT,\n    created_at TIMESTAMP NOT NULL DEFAULT NOW(),\n    created_by VARCHAR(255) NOT NULL,\n    updated_at TIMESTAMP,\n    updated_by VARCHAR(255)\n);",
+          "tags": [
+            "PDPL",
+            "DSR",
+            "Art.14-18"
+          ]
+        }
+      ]
+    },
+    {
+      "rule_id": "SAMA-RET-001",
+      "rule_name": "Data Retention Metadata",
+      "passed": false,
+      "skipped": false,
+      "skip_reason": "",
+      "findings": [
+        {
+          "rule_id": "SAMA-RET-001",
+          "rule_name": "Data Retention Metadata",
+          "severity": "MEDIUM",
+          "table": "customers",
+          "column": null,
+          "message": "Financial table 'customers' missing retention column 'retention_period'",
+          "detail": "Table 'customers' contains Tier 3 (Financial/Regulated) data. SAMA requires financial records to be retained for a minimum of 5 years. Adding 'retention_period' enables per-record retention policy enforcement.",
+          "remediation": "ALTER TABLE customers ADD COLUMN retention_period SMALLINT NULL DEFAULT 60; -- months",
+          "tags": [
+            "SAMA",
+            "retention",
+            "financial"
+          ]
+        },
+        {
+          "rule_id": "SAMA-RET-001",
+          "rule_name": "Data Retention Metadata",
+          "severity": "MEDIUM",
+          "table": "customers",
+          "column": null,
+          "message": "Financial table 'customers' missing retention column 'data_category'",
+          "detail": "Table 'customers' contains Tier 3 (Financial/Regulated) data. SAMA requires financial records to be retained for a minimum of 5 years. Adding 'data_category' enables per-record retention policy enforcement.",
+          "remediation": "ALTER TABLE customers ADD COLUMN data_category VARCHAR(100) NULL;",
+          "tags": [
+            "SAMA",
+            "retention",
+            "financial"
+          ]
+        },
+        {
+          "rule_id": "SAMA-RET-001",
+          "rule_name": "Data Retention Metadata",
+          "severity": "MEDIUM",
+          "table": "accounts",
+          "column": null,
+          "message": "Financial table 'accounts' missing retention column 'retention_period'",
+          "detail": "Table 'accounts' contains Tier 3 (Financial/Regulated) data. SAMA requires financial records to be retained for a minimum of 5 years. Adding 'retention_period' enables per-record retention policy enforcement.",
+          "remediation": "ALTER TABLE accounts ADD COLUMN retention_period SMALLINT NULL DEFAULT 60; -- months",
+          "tags": [
+            "SAMA",
+            "retention",
+            "financial"
+          ]
+        },
+        {
+          "rule_id": "SAMA-RET-001",
+          "rule_name": "Data Retention Metadata",
+          "severity": "MEDIUM",
+          "table": "accounts",
+          "column": null,
+          "message": "Financial table 'accounts' missing retention column 'data_category'",
+          "detail": "Table 'accounts' contains Tier 3 (Financial/Regulated) data. SAMA requires financial records to be retained for a minimum of 5 years. Adding 'data_category' enables per-record retention policy enforcement.",
+          "remediation": "ALTER TABLE accounts ADD COLUMN data_category VARCHAR(100) NULL;",
+          "tags": [
+            "SAMA",
+            "retention",
+            "financial"
+          ]
+        }
+      ]
+    },
+    {
+      "rule_id": "SAMA-TRX-001",
+      "rule_name": "Transaction Traceability",
+      "passed": false,
+      "skipped": false,
+      "skip_reason": "",
+      "findings": [
+        {
+          "rule_id": "SAMA-TRX-001",
+          "rule_name": "Transaction Traceability",
+          "severity": "HIGH",
+          "table": "transactions",
+          "column": null,
+          "message": "Transaction table 'transactions' missing a trace ID column (transaction_id, reference_id, correlation_id)",
+          "detail": "SAMA Open Banking Framework requires end-to-end traceability for all financial transactions. At least one of ['transaction_id', 'reference_id', 'correlation_id'] must be present.",
+          "remediation": "ALTER TABLE transactions ADD COLUMN reference_id VARCHAR(100) UNIQUE NOT NULL;",
+          "tags": [
+            "SAMA",
+            "traceability",
+            "payments",
+            "open-banking"
+          ]
+        },
+        {
+          "rule_id": "SAMA-TRX-001",
+          "rule_name": "Transaction Traceability",
+          "severity": "MEDIUM",
+          "table": "transactions",
+          "column": null,
+          "message": "Transaction table 'transactions' missing a status column",
+          "detail": "A status column is required to track transaction lifecycle (PENDING → PROCESSING → COMPLETED/FAILED) for SAMA compliance.",
+          "remediation": "ALTER TABLE transactions ADD COLUMN status VARCHAR(50) NOT NULL DEFAULT 'PENDING';",
+          "tags": [
+            "SAMA",
+            "traceability",
+            "payments",
+            "open-banking"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+-- ┌──────────────────────────────────────────────────────────────────────────┐
+-- │ [PDPL-CON-001] Create consent_records table
+-- │ PDPL Article 10 — consent must be recorded with purpose, date, and basis
+-- └──────────────────────────────────────────────────────────────────────────┘
+CREATE TABLE IF NOT EXISTS consent_records (
+    id               BIGINT        AUTO_INCREMENT PRIMARY KEY,
+    data_subject_id  BIGINT        NOT NULL,
+    purpose          VARCHAR(500)  NOT NULL,
+    processing_basis VARCHAR(100)  NOT NULL DEFAULT 'CONSENT',
+    consent_given    TINYINT(1)    NOT NULL DEFAULT 0,
+    consent_date     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    withdrawal_date  DATETIME      NULL,
+    consent_version  VARCHAR(50)   NULL,
+    source_ip        VARCHAR(45)   NULL,
+    is_deleted       TINYINT(1)    NOT NULL DEFAULT 0,
+    deleted_at       DATETIME      NULL,
+    deleted_by       VARCHAR(255)  NULL,
+    created_at       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by       VARCHAR(255)  NOT NULL DEFAULT 'SYSTEM',
+    updated_at       DATETIME      NULL ON UPDATE CURRENT_TIMESTAMP,
+    updated_by       VARCHAR(255)  NULL,
+    INDEX idx_consent_data_subject (data_subject_id),
+    INDEX idx_consent_given (consent_given, consent_date DESC)
+);

@@ -1,0 +1,37 @@
+-- ┌──────────────────────────────────────────────────────────────────────────┐
+-- │ [PDPL-ENC-001] Encrypt Tier {{ tier }} column → {{ table }}.{{ column }}
+-- │ PDPL Art.8 — Tier {{ tier }} ({{ tier_label }}) data must be encrypted at rest
+-- └──────────────────────────────────────────────────────────────────────────┘
+
+-- PREREQUISITES:
+-- 1. Set your encryption key as a session variable before running:
+--    SET @encryption_key = 'your-256-bit-key-here';
+-- 2. TEST THIS MIGRATION ON A NON-PRODUCTION DATABASE FIRST.
+
+START TRANSACTION;
+
+-- Step 1: Add encrypted column
+ALTER TABLE {{ table }}
+    ADD COLUMN IF NOT EXISTS {{ column }}_encrypted VARBINARY(512) NULL;
+
+-- Step 2: Encrypt existing data using AES_ENCRYPT
+UPDATE {{ table }}
+   SET {{ column }}_encrypted = AES_ENCRYPT({{ column }}, @encryption_key)
+ WHERE {{ column }} IS NOT NULL
+   AND {{ column }}_encrypted IS NULL;
+
+-- Step 3: Rename plaintext column for rollback safety
+ALTER TABLE {{ table }}
+    CHANGE COLUMN {{ column }} {{ column }}_plaintext_backup {{ original_type }} NULL;
+
+-- Step 4: Rename encrypted column to canonical name
+ALTER TABLE {{ table }}
+    CHANGE COLUMN {{ column }}_encrypted {{ column }} VARBINARY(512) NULL;
+
+COMMIT;
+
+-- Step 5 (AFTER VALIDATION): Drop the plaintext backup column
+-- ALTER TABLE {{ table }} DROP COLUMN {{ column }}_plaintext_backup;
+
+-- Decryption query for application use:
+--   SELECT CAST(AES_DECRYPT({{ column }}, @encryption_key) AS CHAR) FROM {{ table }} WHERE id = ?;

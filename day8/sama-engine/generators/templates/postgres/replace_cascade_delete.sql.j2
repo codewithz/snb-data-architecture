@@ -1,0 +1,40 @@
+-- ┌──────────────────────────────────────────────────────────────────────────┐
+-- │ [SAMA-REF-001] Replace CASCADE DELETE with RESTRICT → {{ table }}
+-- │ FK on column(s) {{ fk_columns | join(', ') }} → {{ ref_table }}
+-- │ CASCADE DELETE on PII/financial tables risks bulk erasure of regulated data
+-- └──────────────────────────────────────────────────────────────────────────┘
+
+-- Step 1: Identify and drop the offending FK constraint
+DO $$
+DECLARE
+    v_constraint_name TEXT;
+BEGIN
+    SELECT tc.constraint_name
+      INTO v_constraint_name
+      FROM information_schema.table_constraints tc
+      JOIN information_schema.key_column_usage kcu
+        ON tc.constraint_name = kcu.constraint_name
+       AND tc.table_name      = kcu.table_name
+      JOIN information_schema.referential_constraints rc
+        ON tc.constraint_name = rc.constraint_name
+     WHERE tc.table_name       = '{{ table }}'
+       AND tc.constraint_type  = 'FOREIGN KEY'
+       AND kcu.column_name     IN ({{ fk_columns | map("tojson") | join(', ') }})
+     LIMIT 1;
+
+    IF v_constraint_name IS NOT NULL THEN
+        EXECUTE format('ALTER TABLE {{ table }} DROP CONSTRAINT %I', v_constraint_name);
+        RAISE NOTICE 'Dropped FK constraint: %', v_constraint_name;
+    ELSE
+        RAISE NOTICE 'No matching FK constraint found on {{ table }}({{ fk_columns | join(', ') }}) — may already be fixed.';
+    END IF;
+END
+$$;
+
+-- Step 2: Recreate with ON DELETE RESTRICT
+ALTER TABLE {{ table }}
+    ADD CONSTRAINT fk_{{ table }}_{{ fk_columns | join('_') }}
+    FOREIGN KEY ({{ fk_columns | join(', ') }})
+    REFERENCES {{ ref_table }} ({{ ref_columns | join(', ') }})
+    ON DELETE RESTRICT
+    ON UPDATE NO ACTION;

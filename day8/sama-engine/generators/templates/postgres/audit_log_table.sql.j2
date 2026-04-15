@@ -1,0 +1,35 @@
+-- ┌──────────────────────────────────────────────────────────────────────────┐
+-- │ Audit log table → {{ table }}_audit_log
+-- │ Captures every INSERT / UPDATE / DELETE with full before/after state
+-- └──────────────────────────────────────────────────────────────────────────┘
+CREATE TABLE IF NOT EXISTS {{ table }}_audit_log (
+    audit_id        BIGSERIAL        PRIMARY KEY,
+    record_id       BIGINT           NOT NULL,
+    operation       VARCHAR(10)      NOT NULL
+                    CHECK (operation IN ('INSERT', 'UPDATE', 'DELETE')),
+    performed_by    VARCHAR(255)     NOT NULL DEFAULT 'UNKNOWN',
+    performed_at    TIMESTAMPTZ      NOT NULL DEFAULT NOW(),
+    application_id  VARCHAR(100)     NULL,
+    source_ip       INET             NULL,
+    correlation_id  UUID             NULL,
+    session_id      VARCHAR(255)     NULL,
+    old_values      JSONB            NULL,
+    new_values      JSONB            NULL
+);
+
+-- ── Indexes for efficient audit queries and correlation tracing ────────────
+CREATE INDEX IF NOT EXISTS idx_{{ table }}_audit_record
+    ON {{ table }}_audit_log (record_id);
+
+CREATE INDEX IF NOT EXISTS idx_{{ table }}_audit_performed
+    ON {{ table }}_audit_log (performed_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_{{ table }}_audit_correlation
+    ON {{ table }}_audit_log (correlation_id)
+    WHERE correlation_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_{{ table }}_audit_operation
+    ON {{ table }}_audit_log (operation, performed_at DESC);
+
+-- Make the audit log append-only: revoke UPDATE/DELETE from application roles
+-- REVOKE UPDATE, DELETE ON {{ table }}_audit_log FROM app_role;

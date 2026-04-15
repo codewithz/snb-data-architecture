@@ -1,0 +1,133 @@
+rules:
+  SAMA-AUD-001:
+    name: "Audit Trail Columns"
+    description: >
+      Every table must have created_at, created_by, updated_at, updated_by columns
+      to maintain a complete audit trail per SAMA Cyber Security Framework section 3.3.5.
+    severity: HIGH
+    enabled: true
+    required_columns:
+      - name: created_at
+        types: [timestamp, datetime, timestamptz, datetime2]
+        nullable: false
+      - name: created_by
+        types: [varchar, text, uuid, int, bigint, nvarchar]
+        nullable: false
+      - name: updated_at
+        types: [timestamp, datetime, timestamptz, datetime2]
+        nullable: true
+      - name: updated_by
+        types: [varchar, text, uuid, int, bigint, nvarchar]
+        nullable: true
+    exempt_patterns:
+      - _audit_log
+      - _history
+      - flyway_schema_history
+      - schema_migrations
+      - alembic_version
+
+  SAMA-AUD-002:
+    name: "Soft Delete Pattern"
+    description: >
+      Tables must support logical deletion via is_deleted, deleted_at, deleted_by
+      to preserve audit trails. Hard deletes on regulated data violate SAMA CSF 3.3.7.
+    severity: HIGH
+    enabled: true
+    required_columns:
+      - name: is_deleted
+        types: [boolean, tinyint, bit, smallint]
+        nullable: false
+        default: "false"
+      - name: deleted_at
+        types: [timestamp, datetime, timestamptz, datetime2]
+        nullable: true
+      - name: deleted_by
+        types: [varchar, text, uuid, int, bigint, nvarchar]
+        nullable: true
+    applies_to_tiers: [1, 2, 3, 4]
+    exempt_patterns:
+      - _audit_log
+      - _history
+      - flyway_schema_history
+
+  SAMA-AUD-003:
+    name: "Audit Log Table Required"
+    description: >
+      PII and financial tables must have a corresponding _audit_log table
+      to capture all data changes with before/after values.
+    severity: CRITICAL
+    enabled: true
+    applies_to_tiers: [1, 3, 4]
+    audit_log_suffix: "_audit_log"
+    audit_log_required_columns:
+      - operation
+      - changed_at
+      - changed_by
+      - old_values
+      - new_values
+      - record_id
+
+  SAMA-REF-001:
+    name: "No Cascade Delete on PII/Financial Tables"
+    description: >
+      Foreign keys referencing PII or financial tables must not use CASCADE DELETE
+      to prevent unintended data destruction of regulated records.
+    severity: CRITICAL
+    enabled: true
+    applies_to_tiers: [1, 3, 4]
+    forbidden_actions:
+      - CASCADE
+    allowed_actions:
+      - RESTRICT
+      - NO ACTION
+      - SET NULL
+
+  SAMA-RET-001:
+    name: "Data Retention Metadata"
+    description: >
+      Financial and transaction tables must include retention metadata columns
+      to enforce SAMA-mandated minimum 5-year retention for financial records.
+    severity: MEDIUM
+    enabled: true
+    applies_to_tiers: [3]
+    required_columns:
+      - name: retention_period
+        types: [int, integer, smallint]
+        nullable: true
+      - name: data_category
+        types: [varchar, text, nvarchar]
+        nullable: true
+
+  SAMA-INT-001:
+    name: "Primary Key Required"
+    description: >
+      Every table must have a primary key to ensure record uniqueness
+      and enable reliable audit trail referencing.
+    severity: HIGH
+    enabled: true
+    exempt_patterns:
+      - _audit_log
+
+  SAMA-TRX-001:
+    name: "Transaction Traceability"
+    description: >
+      Transaction tables must have transaction_id or reference_id for end-to-end
+      traceability as required by SAMA Open Banking and Payments frameworks.
+    severity: HIGH
+    enabled: true
+    transaction_table_patterns:
+      - transaction
+      - payment
+      - transfer
+      - settlement
+      - ledger
+      - journal
+    required_trace_columns:
+      - transaction_id
+      - reference_id
+      - correlation_id
+    required_status_column: true
+    status_column_patterns:
+      - status
+      - transaction_status
+      - payment_status

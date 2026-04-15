@@ -1,0 +1,132 @@
+pii_patterns:
+  tier1:
+    description: "Directly identifying personal data"
+    column_patterns:
+      - national_id
+      - national_number
+      - iqama
+      - passport_number
+      - passport_no
+      - full_name
+      - first_name
+      - last_name
+      - date_of_birth
+      - dob
+      - birth_date
+      - email
+      - email_address
+      - phone
+      - phone_number
+      - mobile
+      - mobile_number
+      - home_address
+      - postal_address
+      - street_address
+      - billing_address
+      - mailing_address
+      - residential_address
+      - physical_address
+      - face_id
+      - fingerprint
+      - biometric
+    type_patterns: []
+
+  tier2:
+    description: "Indirectly identifying personal data"
+    column_patterns:
+      - ip_address
+      - ip
+      - device_id
+      - device_token
+      - mac_address
+      - cookie_id
+      - session_id
+      - user_agent
+      - location
+      - geo_location
+      - latitude
+      - longitude
+      - browser_fingerprint
+      - customer_id
+      - user_id
+      - member_id
+    type_patterns: []
+
+  tier3:
+    description: "Financial and regulated data"
+    column_patterns:
+      - account_number
+      - iban
+      - bank_account
+      - credit_card
+      - card_number
+      - pan
+      - cvv
+      - salary
+      - income
+      - balance
+      - credit_score
+      - loan_amount
+      - transaction_amount
+      - swift_code
+      - routing_number
+    type_patterns: []
+
+  tier4:
+    description: "PDPL Art.3 sensitive categories"
+    column_patterns:
+      - health_data
+      - medical_record
+      - diagnosis
+      - medical_condition
+      - prescription
+      - religion
+      - religious_belief
+      - political_opinion
+      - political_affiliation
+      - trade_union
+      - racial_origin
+      - ethnic_origin
+      - genetic_data
+      - sexual_orientation
+      - criminal_record
+      - criminal_history
+      - mental_health
+      - disability
+
+thresholds:
+  max_findings_before_fail: 0
+  severity_weights:
+    CRITICAL: 10
+    HIGH: 5
+    MEDIUM: 2
+    LOW: 1
+
+audit_columns:
+  required:
+    - created_at
+    - created_by
+    - updated_at
+    - updated_by
+
+soft_delete_columns:
+  required:
+    - is_deleted
+    - deleted_at
+    - deleted_by
+
+retention_columns:
+  required:
+    - retention_period
+    - data_category
+
+encrypted_types:
+  postgres:
+    - bytea
+    - pgp_sym_encrypt
+  mysql:
+    - varbinary
+    - blob
+  mssql:
+    - varbinary
+    - nvarchar  # with Always Encrypted annotation

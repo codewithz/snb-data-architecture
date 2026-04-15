@@ -1,0 +1,17 @@
+-- ┌──────────────────────────────────────────────────────────────────────────┐
+-- │ [SAMA-AUD-002] Add soft-delete columns → {{ table }}
+-- │ SAMA CSF §3.3.7 — logical deletion preserves audit trail
+-- └──────────────────────────────────────────────────────────────────────────┘
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('{{ table }}') AND name = 'is_deleted')
+    ALTER TABLE {{ table }} ADD is_deleted BIT NOT NULL DEFAULT 0;
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('{{ table }}') AND name = 'deleted_at')
+    ALTER TABLE {{ table }} ADD deleted_at DATETIME2 NULL;
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('{{ table }}') AND name = 'deleted_by')
+    ALTER TABLE {{ table }} ADD deleted_by NVARCHAR(255) NULL;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('{{ table }}') AND name = 'idx_{{ table }}_is_deleted')
+    CREATE INDEX idx_{{ table }}_is_deleted ON {{ table }} (is_deleted) WHERE is_deleted = 0;
+GO

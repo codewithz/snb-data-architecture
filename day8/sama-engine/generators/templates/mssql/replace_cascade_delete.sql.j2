@@ -1,0 +1,33 @@
+-- ┌──────────────────────────────────────────────────────────────────────────┐
+-- │ [SAMA-REF-001] Replace CASCADE DELETE with RESTRICT → {{ table }}
+-- │ FK on column(s) {{ fk_columns | join(', ') }} → {{ ref_table }}
+-- └──────────────────────────────────────────────────────────────────────────┘
+DECLARE @fk_name NVARCHAR(256);
+SELECT @fk_name = fk.name
+  FROM sys.foreign_keys fk
+  JOIN sys.foreign_key_columns fkc ON fk.object_id = fkc.constraint_object_id
+  JOIN sys.columns c ON fkc.parent_object_id = c.object_id
+                     AND fkc.parent_column_id = c.column_id
+ WHERE fk.parent_object_id  = OBJECT_ID('{{ table }}')
+   AND c.name               = '{{ fk_columns[0] }}'
+   AND fk.delete_referential_action = 1  -- 1 = CASCADE
+ LIMIT 1;
+
+IF @fk_name IS NOT NULL
+BEGIN
+    DECLARE @drop_sql NVARCHAR(500) =
+        N'ALTER TABLE {{ table }} DROP CONSTRAINT ' + QUOTENAME(@fk_name);
+    EXEC sp_executesql @drop_sql;
+    PRINT 'Dropped FK: ' + @fk_name;
+END
+ELSE
+    PRINT 'No CASCADE FK found on {{ table }}({{ fk_columns | join(", ") }}) — may already be fixed.';
+GO
+
+ALTER TABLE {{ table }}
+    ADD CONSTRAINT fk_{{ table }}_{{ fk_columns | join('_') }}
+    FOREIGN KEY ({{ fk_columns | join(', ') }})
+    REFERENCES {{ ref_table }} ({{ ref_columns | join(', ') }})
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION;
+GO

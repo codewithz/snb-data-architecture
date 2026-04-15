@@ -1,0 +1,34 @@
+-- ┌──────────────────────────────────────────────────────────────────────────┐
+-- │ [SAMA-REF-001] Replace CASCADE DELETE with RESTRICT → {{ table }}
+-- │ FK on column(s) {{ fk_columns | join(', ') }} → {{ ref_table }}
+-- └──────────────────────────────────────────────────────────────────────────┘
+
+-- Step 1: Find and drop the offending FK constraint
+SET @fk_name = (
+    SELECT CONSTRAINT_NAME
+      FROM information_schema.REFERENTIAL_CONSTRAINTS rc
+      JOIN information_schema.KEY_COLUMN_USAGE kcu
+        ON rc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+       AND kcu.TABLE_SCHEMA = DATABASE()
+     WHERE kcu.TABLE_NAME  = '{{ table }}'
+       AND kcu.COLUMN_NAME = '{{ fk_columns[0] }}'
+       AND rc.DELETE_RULE  = 'CASCADE'
+     LIMIT 1
+);
+
+SET @drop_sql = IF(
+    @fk_name IS NOT NULL,
+    CONCAT('ALTER TABLE {{ table }} DROP FOREIGN KEY ', @fk_name),
+    'SELECT "No CASCADE FK found — may already be fixed."'
+);
+PREPARE stmt FROM @drop_sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Step 2: Recreate with ON DELETE RESTRICT
+ALTER TABLE {{ table }}
+    ADD CONSTRAINT fk_{{ table }}_{{ fk_columns | join('_') }}
+    FOREIGN KEY ({{ fk_columns | join(', ') }})
+    REFERENCES {{ ref_table }} ({{ ref_columns | join(', ') }})
+    ON DELETE RESTRICT
+    ON UPDATE NO ACTION;

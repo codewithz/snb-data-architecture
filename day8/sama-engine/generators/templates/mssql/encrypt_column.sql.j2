@@ -1,0 +1,63 @@
+-- ┌──────────────────────────────────────────────────────────────────────────┐
+-- │ [PDPL-ENC-001] Encrypt Tier {{ tier }} column → {{ table }}.{{ column }}
+-- │ PDPL Art.8 — use SQL Server Always Encrypted or manual VARBINARY migration
+-- └──────────────────────────────────────────────────────────────────────────┘
+
+-- OPTION A: Always Encrypted (recommended for production)
+-- Use SQL Server Management Studio → Always Encrypted Wizard, or PowerShell:
+--   $encryptionChanges = @()
+--   $encryptionChanges += New-SqlColumnEncryptionSettings `
+--       -ColumnName "{{ table }}.{{ column }}" `
+--       -EncryptionType Randomized `
+--       -EncryptionKey "CEK_{{ table }}_{{ column }}"
+--   Set-SqlColumnEncryption -ColumnEncryptionSettings $encryptionChanges `
+--       -InputObject $database
+
+-- OPTION B: Manual VARBINARY migration (review app decryption logic before use)
+-- PREREQUISITES: @encryption_key must be set externally; keys should be managed
+-- via Azure Key Vault or SQL Server EKM for production use.
+
+BEGIN TRANSACTION;
+
+-- Step 1: Add encrypted column
+IF NOT EXISTS (
+    SELECT 1 FROM sys.columns
+     WHERE object_id = OBJECT_ID('{{ table }}')
+       AND name = '{{ column }}_encrypted'
+)
+    ALTER TABLE {{ table }} ADD {{ column }}_encrypted VARBINARY(512) NULL;
+GO
+
+-- Step 2: Encrypt existing rows using ENCRYPTBYPASSPHRASE
+-- Replace 'your-passphrase-here' with your actual key or use a variable
+UPDATE {{ table }}
+   SET {{ column }}_encrypted = ENCRYPTBYPASSPHRASE('your-passphrase-here', CAST({{ column }} AS NVARCHAR(MAX)))
+ WHERE {{ column }} IS NOT NULL
+   AND {{ column }}_encrypted IS NULL;
+GO
+
+-- Step 3: Verify
+DECLARE @total BIGINT, @encrypted BIGINT;
+SELECT @total     = COUNT(*) FROM {{ table }} WHERE {{ column }} IS NOT NULL;
+SELECT @encrypted = COUNT(*) FROM {{ table }} WHERE {{ column }}_encrypted IS NOT NULL;
+IF @total <> @encrypted
+    RAISERROR('Encryption verification failed: %d plaintext rows but only %d encrypted.', 16, 1, @total, @encrypted);
+ELSE
+    PRINT 'Encryption OK: ' + CAST(@encrypted AS VARCHAR) + ' rows encrypted.';
+GO
+
+-- Step 4: Rename plaintext column (keep for rollback, drop later)
+EXEC sp_rename '{{ table }}.{{ column }}', '{{ column }}_plaintext_backup', 'COLUMN';
+GO
+EXEC sp_rename '{{ table }}.{{ column }}_encrypted', '{{ column }}', 'COLUMN';
+GO
+
+COMMIT;
+GO
+
+-- Step 5 (AFTER VALIDATION): Drop backup
+-- EXEC sp_rename '{{ table }}.{{ column }}_plaintext_backup' → then DROP COLUMN
+
+-- Decryption query:
+--   SELECT CAST(DECRYPTBYPASSPHRASE('your-passphrase-here', {{ column }}) AS NVARCHAR(MAX))
+--     FROM {{ table }} WHERE id = @id;

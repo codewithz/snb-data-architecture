@@ -1,0 +1,53 @@
+-- ============================================================
+-- SAMA Audit Trail — SQL Server Session Setup Helper
+-- ============================================================
+-- Uses SESSION_CONTEXT (SQL Server 2016+) to pass audit
+-- metadata to triggers without environment variables.
+--
+-- Usage pattern:
+--
+--   EXEC sp_set_session_context 'current_user_id', N'user@example.com';
+--   EXEC sp_set_session_context 'correlation_id',  NEWID();
+--   EXEC sp_set_session_context 'application_id',  N'payment-service';
+--   EXEC sp_set_session_context 'session_id',      N'sess-abc123';
+--
+--   UPDATE customers SET email = @email WHERE id = @id;
+-- ============================================================
+
+-- ── Required SESSION_CONTEXT keys ──────────────────────────
+--   current_user_id  NVARCHAR(255)    — authenticated user identity
+--   correlation_id   UNIQUEIDENTIFIER — links one business transaction
+--   application_id   NVARCHAR(100)    — microservice / component name
+--   session_id       NVARCHAR(255)    — HTTP session or JWT jti
+
+-- ── Stored procedure helper ────────────────────────────────
+CREATE OR ALTER PROCEDURE set_audit_context
+    @current_user_id NVARCHAR(255),
+    @correlation_id  UNIQUEIDENTIFIER = NULL,
+    @application_id  NVARCHAR(100)    = NULL,
+    @session_id      NVARCHAR(255)    = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    EXEC sp_set_session_context N'current_user_id',
+        @current_user_id, @read_only = 0;
+    EXEC sp_set_session_context N'correlation_id',
+        ISNULL(@correlation_id, NEWID()), @read_only = 0;
+    EXEC sp_set_session_context N'application_id',
+        ISNULL(@application_id, N''), @read_only = 0;
+    EXEC sp_set_session_context N'session_id',
+        ISNULL(@session_id, N''), @read_only = 0;
+END;
+GO
+
+-- ── Example call ────────────────────────────────────────────
+-- EXEC set_audit_context
+--     @current_user_id = N'ali@example.com',
+--     @correlation_id  = NEWID(),
+--     @application_id  = N'payment-service',
+--     @session_id      = N'sess-xyz789';
+
+-- ── Audited tables in this schema ────────────────────────────────────────
+{% for table in audited_tables %}
+-- {{ table }} → {{ table }}_audit_log
+{% endfor %}

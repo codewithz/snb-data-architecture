@@ -1,0 +1,59 @@
+-- ┌──────────────────────────────────────────────────────────────────────────┐
+-- │ [SAMA-AUD-003] Create audit log table → {{ table }}_audit_log
+-- │ SAMA CSF §3.3.5 — immutable before/after record for all DML operations
+-- └──────────────────────────────────────────────────────────────────────────┘
+IF OBJECT_ID('{{ table }}_audit_log', 'U') IS NULL
+BEGIN
+    CREATE TABLE {{ table }}_audit_log (
+        audit_id       BIGINT           IDENTITY(1,1) PRIMARY KEY,
+        record_id      BIGINT           NOT NULL,
+        operation      NVARCHAR(10)     NOT NULL
+                       CHECK (operation IN ('INSERT', 'UPDATE', 'DELETE')),
+        performed_at   DATETIME2        NOT NULL DEFAULT GETUTCDATE(),
+        performed_by   NVARCHAR(255)    NOT NULL DEFAULT SYSTEM_USER,
+        source_ip      NVARCHAR(45)     NULL,
+        correlation_id UNIQUEIDENTIFIER NULL     DEFAULT NEWID(),
+        old_values     NVARCHAR(MAX)    NULL,
+        new_values     NVARCHAR(MAX)    NULL
+    );
+
+    CREATE INDEX idx_{{ table }}_audit_record
+        ON {{ table }}_audit_log (record_id);
+    CREATE INDEX idx_{{ table }}_audit_performed
+        ON {{ table }}_audit_log (performed_at DESC);
+    CREATE INDEX idx_{{ table }}_audit_operation
+        ON {{ table }}_audit_log (operation);
+END;
+GO
+
+-- Audit trigger
+CREATE OR ALTER TRIGGER trg_{{ table }}_audit
+ON {{ table }}
+AFTER INSERT, UPDATE, DELETE
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @op NVARCHAR(10);
+    IF EXISTS(SELECT * FROM inserted) AND EXISTS(SELECT * FROM deleted)
+        SET @op = 'UPDATE';
+    ELSE IF EXISTS(SELECT * FROM inserted)
+        SET @op = 'INSERT';
+    ELSE
+        SET @op = 'DELETE';
+
+    INSERT INTO {{ table }}_audit_log
+        (record_id, operation, performed_by, correlation_id, old_values, new_values)
+    SELECT
+        COALESCE(i.{{ pk_col }}, d.{{ pk_col }}),
+        @op,
+        SYSTEM_USER,
+        NEWID(),
+        (SELECT * FROM deleted  d2 WHERE d2.{{ pk_col }} = COALESCE(i.{{ pk_col }}, d.{{ pk_col }})
+         FOR JSON PATH, WITHOUT_ARRAY_WRAPPER),
+        (SELECT * FROM inserted i2 WHERE i2.{{ pk_col }} = COALESCE(i.{{ pk_col }}, d.{{ pk_col }})
+         FOR JSON PATH, WITHOUT_ARRAY_WRAPPER)
+    FROM inserted i
+    FULL OUTER JOIN deleted d ON i.{{ pk_col }} = d.{{ pk_col }};
+END;
+GO

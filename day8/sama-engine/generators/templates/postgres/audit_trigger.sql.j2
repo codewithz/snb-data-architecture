@@ -1,0 +1,92 @@
+-- ┌──────────────────────────────────────────────────────────────────────────┐
+-- │ Audit trigger → {{ table }}
+-- │ Fires AFTER INSERT / UPDATE / DELETE — captures full row state as JSONB
+-- └──────────────────────────────────────────────────────────────────────────┘
+
+-- Session variable contract (set by application before any DML):
+--   SET LOCAL app.current_user   = 'user@example.com';
+--   SET LOCAL app.correlation_id = gen_random_uuid()::TEXT;
+--   SET LOCAL app.application_id = 'payment-service';
+
+CREATE OR REPLACE FUNCTION fn_{{ table }}_audit()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_user          TEXT    := current_setting('app.current_user',   TRUE);
+    v_correlation   UUID;
+    v_app_id        TEXT    := current_setting('app.application_id', TRUE);
+    v_session       TEXT    := current_setting('app.session_id',     TRUE);
+    v_record_id     BIGINT;
+BEGIN
+    -- Safely parse correlation_id (ignore if not a valid UUID)
+    BEGIN
+        v_correlation := current_setting('app.correlation_id', TRUE)::UUID;
+    EXCEPTION WHEN OTHERS THEN
+        v_correlation := gen_random_uuid();
+    END;
+
+    IF TG_OP = 'DELETE' THEN
+        v_record_id := OLD.{{ pk_col }};
+        INSERT INTO {{ table }}_audit_log
+            (record_id, operation, performed_by, application_id,
+             source_ip, correlation_id, session_id, old_values, new_values)
+        VALUES (
+            v_record_id, 'DELETE',
+            COALESCE(NULLIF(v_user,   ''), CURRENT_USER),
+            NULLIF(v_app_id,  ''),
+            inet_client_addr(),
+            v_correlation,
+            NULLIF(v_session, ''),
+            row_to_json(OLD)::JSONB,
+            NULL
+        );
+        RETURN OLD;
+
+    ELSIF TG_OP = 'UPDATE' THEN
+        v_record_id := NEW.{{ pk_col }};
+        INSERT INTO {{ table }}_audit_log
+            (record_id, operation, performed_by, application_id,
+             source_ip, correlation_id, session_id, old_values, new_values)
+        VALUES (
+            v_record_id, 'UPDATE',
+            COALESCE(NULLIF(v_user,   ''), CURRENT_USER),
+            NULLIF(v_app_id,  ''),
+            inet_client_addr(),
+            v_correlation,
+            NULLIF(v_session, ''),
+            row_to_json(OLD)::JSONB,
+            row_to_json(NEW)::JSONB
+        );
+        RETURN NEW;
+
+    ELSIF TG_OP = 'INSERT' THEN
+        v_record_id := NEW.{{ pk_col }};
+        INSERT INTO {{ table }}_audit_log
+            (record_id, operation, performed_by, application_id,
+             source_ip, correlation_id, session_id, old_values, new_values)
+        VALUES (
+            v_record_id, 'INSERT',
+            COALESCE(NULLIF(v_user,   ''), CURRENT_USER),
+            NULLIF(v_app_id,  ''),
+            inet_client_addr(),
+            v_correlation,
+            NULLIF(v_session, ''),
+            NULL,
+            row_to_json(NEW)::JSONB
+        );
+        RETURN NEW;
+    END IF;
+
+    RETURN NULL;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS {{ table }}_audit_trigger ON {{ table }};
+
+CREATE TRIGGER {{ table }}_audit_trigger
+    AFTER INSERT OR UPDATE OR DELETE ON {{ table }}
+    FOR EACH ROW
+    EXECUTE FUNCTION fn_{{ table }}_audit();

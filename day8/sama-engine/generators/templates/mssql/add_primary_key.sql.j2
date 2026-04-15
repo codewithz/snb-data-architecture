@@ -1,0 +1,9 @@
+-- ┌──────────────────────────────────────────────────────────────────────────┐
+-- │ [SAMA-INT-001] Add primary key → {{ table }}
+-- └──────────────────────────────────────────────────────────────────────────┘
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('{{ table }}') AND name = 'id')
+BEGIN
+    ALTER TABLE {{ table }} ADD id BIGINT IDENTITY(1,1) NOT NULL;
+    ALTER TABLE {{ table }} ADD CONSTRAINT pk_{{ table }} PRIMARY KEY (id);
+END;
+GO

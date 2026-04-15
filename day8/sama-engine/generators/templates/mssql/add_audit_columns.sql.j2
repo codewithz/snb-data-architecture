@@ -1,0 +1,21 @@
+-- ┌──────────────────────────────────────────────────────────────────────────┐
+-- │ [SAMA-AUD-001] Add missing audit trail columns → {{ table }}
+-- │ SAMA Cyber Security Framework §3.3.5 — full create/update audit trail
+-- └──────────────────────────────────────────────────────────────────────────┘
+{% for col in missing_columns %}
+IF NOT EXISTS (
+    SELECT 1 FROM sys.columns
+     WHERE object_id = OBJECT_ID('{{ table }}')
+       AND name = '{{ col.name }}'
+)
+BEGIN
+    ALTER TABLE {{ table }} ADD {{ col.name }} {{ col.ddl }};
+END;
+GO
+{% endfor %}
+
+-- ⚠  After backfilling real user IDs, drop the migration defaults:
+{% for col in missing_columns if col.drop_default %}
+-- ALTER TABLE {{ table }} DROP CONSTRAINT DF_{{ table }}_{{ col.name }};
+-- ALTER TABLE {{ table }} ALTER COLUMN {{ col.name }} {{ col.ddl_no_default }};
+{% endfor %}

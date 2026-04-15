@@ -1,0 +1,96 @@
+-- ┌──────────────────────────────────────────────────────────────────────────┐
+-- │ Audit triggers → {{ table }} (INSERT / UPDATE / DELETE)
+-- │ MySQL requires one trigger per event; uses session variables for context
+-- └──────────────────────────────────────────────────────────────────────────┘
+
+-- Session variable contract (set by application before any DML):
+--   SET @app_current_user   = 'user@example.com';
+--   SET @app_correlation_id = UUID();
+--   SET @app_application_id = 'payment-service';
+--   SET @app_session_id     = 'sess-abc123';
+
+DELIMITER $$
+
+-- ── INSERT trigger ────────────────────────────────────────────────────────
+DROP TRIGGER IF EXISTS {{ table }}_audit_insert$$
+CREATE TRIGGER {{ table }}_audit_insert
+AFTER INSERT ON {{ table }}
+FOR EACH ROW
+BEGIN
+    INSERT INTO {{ table }}_audit_log
+        (record_id, operation, performed_by, application_id,
+         source_ip, correlation_id, session_id, old_values, new_values)
+    VALUES (
+        NEW.{{ pk_col }},
+        'INSERT',
+        IFNULL(@app_current_user,   'UNKNOWN'),
+        NULLIF(@app_application_id, ''),
+        NULL,
+        NULLIF(@app_correlation_id, ''),
+        NULLIF(@app_session_id,     ''),
+        NULL,
+        JSON_OBJECT(
+            {% for col in columns %}'{{ col }}', NEW.`{{ col }}`{% if not loop.last %},
+            {% endif %}{% endfor %}
+
+        )
+    );
+END$$
+
+-- ── UPDATE trigger ────────────────────────────────────────────────────────
+DROP TRIGGER IF EXISTS {{ table }}_audit_update$$
+CREATE TRIGGER {{ table }}_audit_update
+AFTER UPDATE ON {{ table }}
+FOR EACH ROW
+BEGIN
+    INSERT INTO {{ table }}_audit_log
+        (record_id, operation, performed_by, application_id,
+         source_ip, correlation_id, session_id, old_values, new_values)
+    VALUES (
+        NEW.{{ pk_col }},
+        'UPDATE',
+        IFNULL(@app_current_user,   'UNKNOWN'),
+        NULLIF(@app_application_id, ''),
+        NULL,
+        NULLIF(@app_correlation_id, ''),
+        NULLIF(@app_session_id,     ''),
+        JSON_OBJECT(
+            {% for col in columns %}'{{ col }}', OLD.`{{ col }}`{% if not loop.last %},
+            {% endif %}{% endfor %}
+
+        ),
+        JSON_OBJECT(
+            {% for col in columns %}'{{ col }}', NEW.`{{ col }}`{% if not loop.last %},
+            {% endif %}{% endfor %}
+
+        )
+    );
+END$$
+
+-- ── DELETE trigger ────────────────────────────────────────────────────────
+DROP TRIGGER IF EXISTS {{ table }}_audit_delete$$
+CREATE TRIGGER {{ table }}_audit_delete
+BEFORE DELETE ON {{ table }}
+FOR EACH ROW
+BEGIN
+    INSERT INTO {{ table }}_audit_log
+        (record_id, operation, performed_by, application_id,
+         source_ip, correlation_id, session_id, old_values, new_values)
+    VALUES (
+        OLD.{{ pk_col }},
+        'DELETE',
+        IFNULL(@app_current_user,   'UNKNOWN'),
+        NULLIF(@app_application_id, ''),
+        NULL,
+        NULLIF(@app_correlation_id, ''),
+        NULLIF(@app_session_id,     ''),
+        JSON_OBJECT(
+            {% for col in columns %}'{{ col }}', OLD.`{{ col }}`{% if not loop.last %},
+            {% endif %}{% endfor %}
+
+        ),
+        NULL
+    );
+END$$
+
+DELIMITER ;

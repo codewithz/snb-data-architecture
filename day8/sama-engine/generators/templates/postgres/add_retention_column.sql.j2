@@ -1,0 +1,20 @@
+-- ┌──────────────────────────────────────────────────────────────────────────┐
+-- │ [SAMA-RET-001] Add data retention metadata → {{ table }}
+-- │ SAMA mandates minimum 5-year (60-month) retention for financial records
+-- └──────────────────────────────────────────────────────────────────────────┘
+ALTER TABLE {{ table }}
+    ADD COLUMN IF NOT EXISTS retention_period   SMALLINT     NULL
+        CHECK (retention_period > 0)
+        DEFAULT 60,   -- 60 months = 5 years (SAMA minimum)
+    ADD COLUMN IF NOT EXISTS data_category      VARCHAR(100) NULL,
+    ADD COLUMN IF NOT EXISTS retention_expires_at TIMESTAMPTZ NULL
+        GENERATED ALWAYS AS (
+            created_at + (retention_period * INTERVAL '1 month')
+        ) STORED;
+
+COMMENT ON COLUMN {{ table }}.retention_period
+    IS 'Retention period in months. SAMA minimum for financial records = 60.';
+COMMENT ON COLUMN {{ table }}.data_category
+    IS 'Data category for retention policy (e.g. FINANCIAL, PERSONAL, OPERATIONAL).';
+COMMENT ON COLUMN {{ table }}.retention_expires_at
+    IS 'Computed expiry timestamp: created_at + retention_period months.';
